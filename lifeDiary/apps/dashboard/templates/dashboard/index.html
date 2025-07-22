@@ -1,0 +1,565 @@
+{% extends 'base.html' %}
+
+{% block title %}대시보드 - {{ selected_date|date:"Y년 m월 d일" }} | 10분 단위 라이프 다이어리{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- 날짜 선택 및 통계 -->
+    <div class="col-12 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-calendar-day me-2"></i>
+                    {{ selected_date|date:"Y년 m월 d일 (l)" }}
+                </h5>
+                <div class="d-flex gap-2">
+                    <input type="date" 
+                           class="form-control form-control-sm" 
+                           id="dateSelector" 
+                           value="{{ selected_date|date:'Y-m-d' }}"
+                           style="width: 150px;">
+                    <button class="btn btn-sm btn-outline-primary" onclick="goToToday()">
+                        <i class="fas fa-home"></i> 오늘
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-clock text-primary me-2"></i>
+                            <div>
+                                <div class="fw-bold">{{ total_slots }}</div>
+                                <small class="text-muted">총 슬롯</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-check-circle text-success me-2"></i>
+                            <div>
+                                <div class="fw-bold">{{ filled_slots }}</div>
+                                <small class="text-muted">기록된 슬롯</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-chart-pie text-info me-2"></i>
+                            <div>
+                                <div class="fw-bold">{{ fill_percentage }}%</div>
+                                <small class="text-muted">기록률</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-hourglass-half text-warning me-2"></i>
+                            <div>
+                                <div class="fw-bold">{{ total_hours }}시간 {{ remaining_minutes }}분</div>
+                                <small class="text-muted">총 기록 시간</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- 시간 그리드 -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-th me-2"></i>
+                    시간 그리드 (10분 단위)
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- 시간 표시 헤더 (그리드와 동일한 12열 구조) -->
+                <div class="time-grid mb-3" style="grid-template-columns: repeat(12, 1fr); display: grid; gap: 2px;">
+                    {% for time_header in time_headers %}
+                        <div class="text-center text-muted small py-1" style="font-weight: 500;">
+                            {{ time_header }}
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- 144칸 그리드 -->
+                <div class="time-grid" id="timeGrid">
+                    {% for slot in slots %}
+                        <div class="time-slot {% if slot.data %}filled{% endif %}" 
+                             data-slot-index="{{ slot.index }}"
+                             data-time="{{ slot.time_str }}"
+                             {% if slot.data %}
+                                 style="background-color: {{ slot.data.tag.color }};"
+                                 title="{{ slot.time_str }} - {{ slot.data.tag.name }}{% if slot.data.memo %}: {{ slot.data.memo }}{% endif %}"
+                             {% else %}
+                                 title="{{ slot.time_str }} - 빈 슬롯"
+                             {% endif %}
+                             onclick="selectSlot({{ slot.index }})"
+                             onmousedown="startDrag({{ slot.index }})"
+                             onmouseenter="dragOver({{ slot.index }})"
+                             onmouseup="endDrag()"
+                             ontouchstart="startDrag({{ slot.index }})"
+                             ontouchmove="handleTouchMove(event)"
+                             ontouchend="endDrag()">
+                            
+                            <!-- 시간 표시 (매 시간마다) -->
+                            {% if slot.minute == 0 %}
+                                <div class="slot-time">{{ slot.hour|stringformat:"02d" }}:00</div>
+                            {% endif %}
+                            
+                            <!-- 태그 표시 -->
+                            {% if slot.data %}
+                                <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+                                    <small class="text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                                        {{ slot.data.tag.name|truncatechars:3 }}
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- 범례 -->
+                <div class="mt-3">
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for tag in user_tags %}
+                            <span class="badge" style="background-color: {{ tag.color }};">
+                                {{ tag.name }}
+                            </span>
+                        {% empty %}
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                태그를 먼저 생성해주세요.
+                            </small>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 사이드바 - 태그 선택 및 정보 -->
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    빠른 입력
+                </h6>
+            </div>
+            <div class="card-body">
+                                 {% if user_tags %}
+                     <div class="mb-3">
+                         <div class="d-flex justify-content-between align-items-center mb-2">
+                             <label class="form-label mb-0">태그 선택</label>
+                             <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#usageHelp">
+                                 <i class="fas fa-question-circle"></i>
+                             </button>
+                         </div>
+                         
+                         <div class="collapse" id="usageHelp">
+                             <div class="alert alert-info alert-sm">
+                                 <small>
+                                     <strong>사용법:</strong><br>
+                                     • <strong>단일 선택:</strong> 슬롯 클릭<br>
+                                     • <strong>드래그 선택:</strong> 마우스로 드래그<br>
+                                     • <strong>다중 선택:</strong> Ctrl/Cmd + 클릭<br>
+                                     • <strong>터치:</strong> 터치 후 드래그
+                                 </small>
+                             </div>
+                         </div>
+                        <div class="d-grid gap-2">
+                            {% for tag in user_tags %}
+                                <button class="btn btn-outline-secondary btn-sm tag-btn" 
+                                        data-tag-id="{{ tag.id }}"
+                                        data-tag-color="{{ tag.color }}"
+                                        onclick="selectTag({{ tag.id }}, '{{ tag.color }}', '{{ tag.name }}')">
+                                    <span class="badge me-2" style="background-color: {{ tag.color }};">&nbsp;</span>
+                                    {{ tag.name }}
+                                </button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="memoInput" class="form-label">메모 (선택사항)</label>
+                        <textarea class="form-control" id="memoInput" rows="3" placeholder="메모를 입력하세요..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-primary" onclick="saveSlot()" disabled id="saveBtn">
+                            <i class="fas fa-save me-1"></i>
+                            저장
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="deleteSlot()" disabled id="deleteBtn">
+                            <i class="fas fa-trash me-1"></i>
+                            삭제
+                        </button>
+                    </div>
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-tags text-muted mb-3" style="font-size: 3rem;"></i>
+                        <p class="text-muted">태그를 먼저 생성해주세요.</p>
+                        <a href="{% url 'tags:index' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>
+                            태그 만들기
+                        </a>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 선택된 슬롯 정보 -->
+        <div class="card mt-3" id="slotInfoCard" style="display: none;">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    선택된 슬롯
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="slotInfo">
+                    <!-- JavaScript로 동적 업데이트 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let selectedSlots = new Set(); // 선택된 슬롯들을 저장하는 Set
+    let selectedTag = null;
+    let isDragging = false;
+    let startSlot = null;
+    
+    // 날짜 변경 - 현대적인 방식
+    document.getElementById('dateSelector').addEventListener('change', (event) => {
+        const selectedDate = event.target.value;
+        const url = new URL(window.location);
+        url.searchParams.set('date', selectedDate);
+        window.location.href = url.toString();
+    });
+    
+    // 오늘로 이동
+    const goToToday = () => {
+        const url = new URL(window.location);
+        url.searchParams.delete('date');
+        window.location.href = url.toString();
+    };
+    
+    // 슬롯 선택 (단일 클릭)
+    const selectSlot = (slotIndex) => {
+        if (isDragging) return; // 드래그 중이면 무시
+        
+        const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+        if (!slotElement) return;
+        
+        // Ctrl/Cmd 키가 눌렸는지 확인
+        const isMultiSelect = event.ctrlKey || event.metaKey;
+        
+        if (!isMultiSelect) {
+            // 단일 선택: 모든 선택 해제 후 새로 선택
+            clearSelection();
+            selectedSlots.add(slotIndex);
+            slotElement.classList.add('selected');
+        } else {
+            // 다중 선택: 토글
+            if (selectedSlots.has(slotIndex)) {
+                selectedSlots.delete(slotIndex);
+                slotElement.classList.remove('selected');
+            } else {
+                selectedSlots.add(slotIndex);
+                slotElement.classList.add('selected');
+            }
+        }
+        
+        // 슬롯 정보 표시
+        showSlotInfo(Array.from(selectedSlots));
+        
+        // 버튼 활성화
+        updateButtons();
+    };
+    
+    // 선택 해제
+    const clearSelection = () => {
+        selectedSlots.clear();
+        document.querySelectorAll('.time-slot').forEach(slot => {
+            slot.classList.remove('selected');
+        });
+    };
+    
+    // 태그 선택
+    const selectTag = (tagId, tagColor, tagName) => {
+        // 이전 선택 해제
+        document.querySelectorAll('.tag-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // 새 선택 적용
+        event.target.classList.add('active');
+        
+        selectedTag = {
+            id: tagId,
+            color: tagColor,
+            name: tagName
+        };
+        
+        updateButtons();
+    };
+    
+    // 슬롯 정보 표시 (다중 선택 지원)
+    const showSlotInfo = (slotIndexes) => {
+        if (!slotIndexes || slotIndexes.length === 0) {
+            const slotInfoCard = document.getElementById('slotInfoCard');
+            if (slotInfoCard) slotInfoCard.style.display = 'none';
+            return;
+        }
+        
+        let infoHTML = '';
+        
+        if (slotIndexes.length === 1) {
+            // 단일 슬롯 정보
+            const slotIndex = slotIndexes[0];
+            const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+            if (!slotElement) return;
+            
+            const totalMinutes = slotIndex * 10;
+            const hour = Math.floor(totalMinutes / 60);
+            const minute = totalMinutes % 60;
+            const endTotalMinutes = (slotIndex + 1) * 10;
+            const endHour = Math.floor(endTotalMinutes / 60);
+            const endMinute = endTotalMinutes % 60;
+            
+            const timeRange = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+            
+            infoHTML = `
+                <div class="mb-2">
+                    <strong>시간:</strong> ${timeRange}
+                </div>
+                <div class="mb-2">
+                    <strong>현재:</strong> 
+                    ${slotElement.classList.contains('filled') ? slotElement.title : '<span class="text-muted">빈 슬롯</span>'}
+                </div>
+            `;
+        } else {
+            // 다중 슬롯 정보
+            const sortedSlots = slotIndexes.sort((a, b) => a - b);
+            const startSlot = sortedSlots[0];
+            const endSlot = sortedSlots[sortedSlots.length - 1];
+            
+            const startTotalMinutes = startSlot * 10;
+            const startHour = Math.floor(startTotalMinutes / 60);
+            const startMinute = startTotalMinutes % 60;
+            
+            const endTotalMinutes = (endSlot + 1) * 10;
+            const endHour = Math.floor(endTotalMinutes / 60);
+            const endMinute = endTotalMinutes % 60;
+            
+            const timeRange = `${startHour.toString().padStart(2, '0')}:${startMinute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+            const totalDuration = slotIndexes.length * 10;
+            const durationHours = Math.floor(totalDuration / 60);
+            const durationMinutes = totalDuration % 60;
+            
+            infoHTML = `
+                <div class="mb-2">
+                    <strong>선택된 슬롯:</strong> ${slotIndexes.length}개
+                </div>
+                <div class="mb-2">
+                    <strong>시간 범위:</strong> ${timeRange}
+                </div>
+                <div class="mb-2">
+                    <strong>총 시간:</strong> ${durationHours}시간 ${durationMinutes}분
+                </div>
+            `;
+        }
+        
+        const slotInfoElement = document.getElementById('slotInfo');
+        const slotInfoCard = document.getElementById('slotInfoCard');
+        
+        if (slotInfoElement && slotInfoCard) {
+            slotInfoElement.innerHTML = infoHTML;
+            slotInfoCard.style.display = 'block';
+        }
+    };
+    
+    // 버튼 상태 업데이트
+    const updateButtons = () => {
+        const saveBtn = document.getElementById('saveBtn');
+        const deleteBtn = document.getElementById('deleteBtn');
+        
+        if (saveBtn) {
+            saveBtn.disabled = !(selectedSlots.size > 0 && selectedTag !== null);
+        }
+        
+        if (deleteBtn) {
+            // 선택된 슬롯 중 하나라도 채워져 있으면 삭제 버튼 활성화
+            const hasFilledSlot = Array.from(selectedSlots).some(slotIndex => {
+                const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+                return slotElement?.classList.contains('filled');
+            });
+            deleteBtn.disabled = !(selectedSlots.size > 0 && hasFilledSlot);
+        }
+    };
+    
+    // 드래그 시작
+    const startDrag = (slotIndex) => {
+        isDragging = true;
+        startSlot = slotIndex;
+        
+        // 기존 선택 해제
+        clearSelection();
+        selectedSlots.add(slotIndex);
+        
+        const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+        slotElement?.classList.add('selected');
+        
+        // 마우스 이벤트 방지
+        event.preventDefault();
+    };
+    
+    // 드래그 중
+    const dragOver = (slotIndex) => {
+        if (!isDragging || startSlot === null) return;
+        
+        // 시작점과 현재점 사이의 모든 슬롯 선택
+        const start = Math.min(startSlot, slotIndex);
+        const end = Math.max(startSlot, slotIndex);
+        
+        // 기존 선택 해제
+        clearSelection();
+        
+        // 범위 내 모든 슬롯 선택
+        for (let i = start; i <= end; i++) {
+            selectedSlots.add(i);
+            const slotElement = document.querySelector(`[data-slot-index="${i}"]`);
+            slotElement?.classList.add('selected');
+        }
+        
+        showSlotInfo(Array.from(selectedSlots));
+        updateButtons();
+    };
+    
+    // 드래그 종료
+    const endDrag = () => {
+        if (isDragging) {
+            isDragging = false;
+            startSlot = null;
+            
+            // 최종 선택 상태 업데이트
+            showSlotInfo(Array.from(selectedSlots));
+            updateButtons();
+        }
+    };
+    
+    // 터치 이벤트 처리
+    const handleTouchMove = (event) => {
+        if (!isDragging) return;
+        
+        event.preventDefault();
+        const touch = event.touches[0];
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+        
+        if (elementBelow && elementBelow.classList.contains('time-slot')) {
+            const slotIndex = parseInt(elementBelow.dataset.slotIndex);
+            if (!isNaN(slotIndex)) {
+                dragOver(slotIndex);
+            }
+        }
+    };
+    
+    // 전역 마우스 이벤트 리스너
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('mouseleave', endDrag);
+    
+    // 슬롯 저장 (다중 선택 지원)
+    const saveSlot = () => {
+        if (selectedSlots.size === 0 || selectedTag === null) {
+            alert('슬롯과 태그를 선택해주세요.');
+            return;
+        }
+        
+        const memoInput = document.getElementById('memoInput');
+        const memo = memoInput?.value || '';
+        
+        // 선택된 모든 슬롯에 태그 적용
+        selectedSlots.forEach(slotIndex => {
+            const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+            if (!slotElement) return;
+            
+            slotElement.style.backgroundColor = selectedTag.color;
+            slotElement.classList.add('filled');
+            slotElement.title = `${slotElement.dataset.time} - ${selectedTag.name}${memo ? ': ' + memo : ''}`;
+            
+            // 내부 HTML 업데이트
+            slotElement.innerHTML = `
+                <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+                    <small class="text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                        ${selectedTag.name.substring(0, 3)}
+                    </small>
+                </div>
+            `;
+        });
+        
+        // 상태 초기화
+        if (memoInput) memoInput.value = '';
+        clearSelection();
+        selectedTag = null;
+        
+        // 태그 버튼 선택 해제
+        document.querySelectorAll('.tag-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        updateButtons();
+        const slotInfoCard = document.getElementById('slotInfoCard');
+        if (slotInfoCard) slotInfoCard.style.display = 'none';
+        
+        alert(`${selectedSlots.size}개 슬롯이 저장되었습니다! (임시 - 새로고침하면 사라집니다)`);
+    };
+    
+    // 슬롯 삭제 (다중 선택 지원)
+    const deleteSlot = () => {
+        if (selectedSlots.size === 0) {
+            alert('삭제할 슬롯을 선택해주세요.');
+            return;
+        }
+        
+        const filledSlots = Array.from(selectedSlots).filter(slotIndex => {
+            const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+            return slotElement?.classList.contains('filled');
+        });
+        
+        if (filledSlots.length === 0) {
+            alert('삭제할 수 있는 기록된 슬롯이 없습니다.');
+            return;
+        }
+        
+        if (confirm(`${filledSlots.length}개의 기록된 슬롯을 삭제하시겠습니까?`)) {
+            filledSlots.forEach(slotIndex => {
+                const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+                if (!slotElement) return;
+                
+                slotElement.style.backgroundColor = '';
+                slotElement.classList.remove('filled');
+                slotElement.title = `${slotElement.dataset.time} - 빈 슬롯`;
+                slotElement.innerHTML = '';
+            });
+            
+            clearSelection();
+            updateButtons();
+            
+            const slotInfoCard = document.getElementById('slotInfoCard');
+            if (slotInfoCard) slotInfoCard.style.display = 'none';
+            
+            alert(`${filledSlots.length}개 슬롯이 삭제되었습니다! (임시 - 새로고침하면 원래대로 돌아옵니다)`);
+        }
+    };
+</script>
+{% endblock %} 

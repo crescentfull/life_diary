@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ project_name }}{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="jumbotron bg-primary text-white rounded-3 p-5 mb-5">
+            <div class="container text-center">
+                <h1 class="display-4 fw-bold mb-4">
+                    <i class="fas fa-clock me-3"></i>
+                    {{ project_name }}
+                </h1>
+                <p class="lead mb-4">{{ project_description }}</p>
+                
+                {% if user.is_authenticated %}
+                    <div class="d-flex justify-content-center gap-3">
+                        <a href="{% url 'dashboard:index' %}" class="btn btn-light btn-lg">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            대시보드 시작하기
+                        </a>
+                        <a href="{% url 'admin:index' %}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-cog me-2"></i>
+                            관리자 패널
+                        </a>
+                    </div>
+                {% else %}
+                    <a href="{% url 'admin:login' %}" class="btn btn-light btn-lg">
+                        <i class="fas fa-sign-in-alt me-2"></i>
+                        로그인하여 시작하기
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Features Section -->
+<div class="row">
+    <div class="col-12">
+        <h2 class="text-center mb-5">
+            <i class="fas fa-star me-2 text-warning"></i>
+            주요 기능
+        </h2>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    {% for feature in features %}
+    <div class="col-md-4">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body text-center">
+                <div class="mb-3">
+                    <i class="{{ feature.icon }} text-primary" style="font-size: 3rem;"></i>
+                </div>
+                <h5 class="card-title">{{ feature.title }}</h5>
+                <p class="card-text text-muted">{{ feature.description }}</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- How it Works Section -->
+<div class="row">
+    <div class="col-12">
+        <h2 class="text-center mb-5">
+            <i class="fas fa-lightbulb me-2 text-warning"></i>
+            사용 방법
+        </h2>
+    </div>
+</div>
+
+<div class="row g-4 mb-5">
+    <div class="col-md-3">
+        <div class="text-center">
+            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">1</span>
+            </div>
+            <h5>태그 생성</h5>
+            <p class="text-muted">업무, 운동, 식사 등 활동별 태그를 색상과 함께 생성하세요.</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="text-center">
+            <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">2</span>
+            </div>
+            <h5>시간 기록</h5>
+            <p class="text-muted">144칸 그리드에서 10분 단위로 활동을 클릭하여 기록하세요.</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="text-center">
+            <div class="bg-info text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">3</span>
+            </div>
+            <h5>패턴 분석</h5>
+            <p class="text-muted">일/주/월 단위 히트맵으로 생활 패턴을 시각화합니다.</p>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="text-center">
+            <div class="bg-warning text-white rounded-circle d-inline-flex align-items-center justify-content-center mb-3" style="width: 60px; height: 60px;">
+                <span class="fw-bold fs-4">4</span>
+            </div>
+            <h5>성찰 & 개선</h5>
+            <p class="text-muted">통계를 통해 시간 사용 패턴을 성찰하고 개선하세요.</p>
+        </div>
+    </div>
+</div>
+
+<!-- Status Section -->
+{% if user.is_authenticated %}
+<div class="row">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <div class="d-flex align-items-center">
+                <i class="fas fa-info-circle me-3 fs-4"></i>
+                <div>
+                    <h5 class="mb-1">안녕하세요, {{ user.username }}님!</h5>
+                    <p class="mb-0">대시보드에서 오늘의 시간 기록을 시작해보세요.</p>
+                </div>
+                <div class="ms-auto">
+                    <a href="{% url 'dashboard:index' %}" class="btn btn-info">
+                        대시보드로 이동
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %} 
