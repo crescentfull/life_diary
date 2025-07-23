@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}태그 관리 | 라이프 다이어리{% endblock %}
+{% block title %}태그 관리 | 10분 단위 라이프 다이어리{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -13,28 +13,24 @@
                 </h5>
             </div>
             <div class="card-body">
-                <div class="alert alert-success">
-                    <h5><i class="fas fa-check-circle me-2"></i>태그 관리 완료!</h5>
-                    <p class="mb-0">
-                        태그 관리 기능이 대시보드에 통합되었습니다.<br>
-                        <strong>대시보드 → 태그 관리(⚙️)</strong>에서 개인 태그를 생성하고 관리할 수 있습니다.
-                    </p>
-                </div>
-                
-                <div class="alert alert-info">
-                    <h5><i class="fas fa-info-circle me-2"></i>태그 시스템 안내</h5>
-                    <ul class="mb-0">
-                        <li><strong>기본 태그:</strong> 관리자가 설정한 모든 사용자 공용 태그 (10개)</li>
-                        <li><strong>개인 태그:</strong> 사용자가 직접 생성한 개인용 태그</li>
-                        <li><strong>사용법:</strong> 대시보드에서 태그 선택 → 슬롯 드래그 → 저장</li>
-                    </ul>
-                </div>
-                
-                <div class="text-center mt-4">
-                    <a href="{% url 'dashboard:index' %}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-tachometer-alt me-2"></i>
-                        대시보드로 이동
-                    </a>
+                <div class="text-center py-5">
+                    <i class="fas fa-construction text-muted mb-3" style="font-size: 4rem;"></i>
+                    <h4 class="text-muted">개발 중입니다</h4>
+                    <p class="text-muted">{{ development_stage }}</p>
+                    <div class="mt-4">
+                        <a href="{% url 'home' %}" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-home me-1"></i>
+                            홈으로
+                        </a>
+                        <a href="{% url 'dashboard:index' %}" class="btn btn-primary me-2">
+                            <i class="fas fa-tachometer-alt me-1"></i>
+                            대시보드로
+                        </a>
+                        <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-cog me-1"></i>
+                            관리자에서 태그 관리
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
