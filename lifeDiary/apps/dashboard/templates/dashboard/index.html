@@ -957,6 +957,7 @@
         }
         
         let infoHTML = '';
+        let memoHTML = '';
         
         if (slotIndexes.length === 1) {
             // 단일 슬롯 정보
@@ -973,6 +974,9 @@
             
             const timeRange = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} - ${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
             
+            // 슬롯 데이터에서 메모 가져오기
+            const selectedDate = document.getElementById('dateSelector')?.value || new Date().toISOString().split('T')[0];
+            
             infoHTML = `
                 <div class="mb-2">
                     <strong>시간:</strong> ${timeRange}
@@ -982,6 +986,29 @@
                     ${slotElement.classList.contains('filled') ? slotElement.title : '<span class="text-muted">빈 슬롯</span>'}
                 </div>
             `;
+            
+            // 단일 슬롯의 메모 확인을 위해 API 호출
+            if (slotElement.classList.contains('filled')) {
+                fetch(`/dashboard/api/slot/${slotIndex}/?date=${selectedDate}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.exists && data.memo) {
+                            const slotInfoCard = document.getElementById('slotInfoCard');
+                            if (slotInfoCard) {
+                                const existingMemo = slotInfoCard.querySelector('.slot-memo');
+                                if (existingMemo) {
+                                    existingMemo.remove();
+                                }
+                                
+                                const memoDiv = document.createElement('div');
+                                memoDiv.className = 'mt-2 p-2 bg-light rounded slot-memo';
+                                memoDiv.innerHTML = `<strong>메모:</strong> ${data.memo}`;
+                                slotInfoCard.querySelector('.card-body').appendChild(memoDiv);
+                            }
+                        }
+                    })
+                    .catch(error => console.error('메모 로드 오류:', error));
+            }
         } else {
             // 다중 슬롯 정보
             const sortedSlots = slotIndexes.sort((a, b) => a - b);
@@ -1018,6 +1045,12 @@
         const slotInfoCard = document.getElementById('slotInfoCard');
         
         if (slotInfoElement && slotInfoCard) {
+            // 기존 메모 제거
+            const existingMemo = slotInfoCard.querySelector('.slot-memo');
+            if (existingMemo) {
+                existingMemo.remove();
+            }
+            
             slotInfoElement.innerHTML = infoHTML;
             slotInfoCard.style.display = 'block';
         }
