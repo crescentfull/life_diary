@@ -3,37 +3,763 @@
 {% block title %}통계 | 라이프 다이어리{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row mb-4">
     <div class="col-12">
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="fas fa-chart-bar me-2"></i>
-                    통계
+                    통계 분석
                 </h5>
+                <div class="d-flex gap-2">
+                    <input type="date" 
+                           class="form-control form-control-sm" 
+                           id="dateSelector" 
+                           value="{{ selected_date|date:'Y-m-d' }}"
+                           style="width: 150px;">
+                    <button class="btn btn-sm btn-outline-primary" onclick="goToToday()">
+                        <i class="fas fa-home"></i> 오늘
+                    </button>
+                </div>
             </div>
             <div class="card-body">
-                <div class="text-center py-5">
-                    <i class="fas fa-chart-line text-muted mb-3" style="font-size: 4rem;"></i>
-                    <h4 class="text-muted">개발 중입니다</h4>
-                    <p class="text-muted">{{ development_stage }}</p>
-                    <div class="mt-4">
-                        <a href="{% url 'home' %}" class="btn btn-outline-primary me-2">
-                            <i class="fas fa-home me-1"></i>
-                            홈으로
-                        </a>
-                        <a href="{% url 'dashboard:index' %}" class="btn btn-primary me-2">
-                            <i class="fas fa-tachometer-alt me-1"></i>
-                            대시보드로
-                        </a>
-                        <a href="{% url 'admin:index' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-database me-1"></i>
-                            관리자에서 데이터 확인
-                        </a>
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-clock text-primary me-2"></i>
+                            <div>
+                                <div class="fw-bold" id="totalHours">{{ total_hours }}시간</div>
+                                <small class="text-muted">총 기록 시간</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-calendar-check text-success me-2"></i>
+                            <div>
+                                <div class="fw-bold" id="totalDays">{{ total_days }}일</div>
+                                <small class="text-muted">활동한 날</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-chart-pie text-info me-2"></i>
+                            <div>
+                                <div class="fw-bold" id="totalBlocks">{{ total_blocks }}</div>
+                                <small class="text-muted">총 블록 수</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex align-items-center justify-content-center">
+                            <i class="fas fa-chart-line text-warning me-2"></i>
+                            <div>
+                                <div class="fw-bold" id="avgDaily">-</div>
+                                <small class="text-muted">일평균 시간</small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<!-- 통계 탭 -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <ul class="nav nav-tabs card-header-tabs" id="statsTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="daily-tab" data-bs-toggle="tab" data-bs-target="#daily" type="button" role="tab">
+                            <i class="fas fa-calendar-day me-1"></i>일별 통계
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="weekly-tab" data-bs-toggle="tab" data-bs-target="#weekly" type="button" role="tab">
+                            <i class="fas fa-calendar-week me-1"></i>주간 통계
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="monthly-tab" data-bs-toggle="tab" data-bs-target="#monthly" type="button" role="tab">
+                            <i class="fas fa-calendar-alt me-1"></i>월간 통계
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="tags-tab" data-bs-toggle="tab" data-bs-target="#tags" type="button" role="tab">
+                            <i class="fas fa-tags me-1"></i>태그 분석
+                        </button>
+                    </li>
+                </ul>
+            </div>
+            <div class="card-body">
+                <div class="tab-content" id="statsTabContent">
+                    <!-- 일별 통계 -->
+                    <div class="tab-pane fade show active" id="daily" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <h6 class="mb-3">태그별 시간 분포</h6>
+                                <div class="text-center" style="height: 300px;">
+                                    <canvas id="dailyPieChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <h6 class="mb-3">시간대별 활동</h6>
+                                <div class="text-center" style="height: 300px;">
+                                    <canvas id="hourlyBarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="mb-3">일별 요약</h6>
+                                <div id="dailySummary" class="alert alert-info">
+                                    <div class="d-flex justify-content-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        로딩 중...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 주간 통계 -->
+                    <div class="tab-pane fade" id="weekly" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h6 class="mb-3">주간 태그별 트렌드</h6>
+                                <div style="height: 300px;">
+                                    <canvas id="weeklyLineChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6 class="mb-3">요일별 활동량</h6>
+                                <div style="height: 300px;">
+                                    <canvas id="weeklyBarChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="mb-3">주간 요약</h6>
+                                <div id="weeklySummary" class="alert alert-info">
+                                    <div class="d-flex justify-content-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        로딩 중...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 월간 통계 -->
+                    <div class="tab-pane fade" id="monthly" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h6 class="mb-3">월간 태그별 사용량</h6>
+                                <div style="height: 300px;">
+                                    <canvas id="monthlyBarChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6 class="mb-3">월간 활동 달력</h6>
+                                <div id="monthlyCalendar" style="height: 300px; overflow-y: auto;">
+                                    <!-- 월간 달력 히트맵이 여기에 표시됩니다 -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="mb-3">월간 요약</h6>
+                                <div id="monthlySummary" class="alert alert-info">
+                                    <div class="d-flex justify-content-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        로딩 중...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 태그 분석 -->
+                    <div class="tab-pane fade" id="tags" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h6 class="mb-3">태그별 총 사용 시간</h6>
+                                <div style="height: 300px;">
+                                    <canvas id="tagTotalChart"></canvas>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6 class="mb-3">태그 사용 빈도</h6>
+                                <div style="height: 300px;">
+                                    <canvas id="tagFrequencyChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="mb-3">태그별 상세 분석</h6>
+                                <div id="tagAnalysisTable">
+                                    <div class="d-flex justify-content-center">
+                                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                        로딩 중...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js 라이브러리 -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+let charts = {}; // 차트 인스턴스들을 저장
+let currentDate = '{{ selected_date|date:"Y-m-d" }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    // 날짜 변경 이벤트
+    const dateSelector = document.getElementById('dateSelector');
+    if (dateSelector) {
+        dateSelector.addEventListener('change', function() {
+            currentDate = this.value;
+            const activeTab = document.querySelector('.nav-link.active').id;
+            loadStatsForActiveTab(activeTab);
+        });
+    }
+
+    // 탭 변경 이벤트
+    const tabLinks = document.querySelectorAll('#statsTabs .nav-link');
+    tabLinks.forEach(tab => {
+        tab.addEventListener('shown.bs.tab', function(e) {
+            const tabId = e.target.id;
+            loadStatsForActiveTab(tabId);
+        });
+    });
+
+    // 초기 로드
+    loadDailyStats();
+});
+
+function loadStatsForActiveTab(tabId) {
+    switch(tabId) {
+        case 'daily-tab':
+            loadDailyStats();
+            break;
+        case 'weekly-tab':
+            loadWeeklyStats();
+            break;
+        case 'monthly-tab':
+            loadMonthlyStats();
+            break;
+        case 'tags-tab':
+            loadTagAnalysis();
+            break;
+    }
+}
+
+// 일별 통계 로드
+async function loadDailyStats() {
+    try {
+        const response = await fetch(`/stats/api/daily/?date=${currentDate}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderDailyPieChart(data.tag_stats);
+            renderHourlyBarChart(data.hourly_stats);
+            renderDailySummary(data);
+        }
+    } catch (error) {
+        console.error('일별 통계 로드 오류:', error);
+    }
+}
+
+// 주간 통계 로드
+async function loadWeeklyStats() {
+    try {
+        const response = await fetch(`/stats/api/weekly/?date=${currentDate}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderWeeklyLineChart(data.tag_weekly_stats, data.weekly_data);
+            renderWeeklyBarChart(data.weekly_data);
+            renderWeeklySummary(data);
+        }
+    } catch (error) {
+        console.error('주간 통계 로드 오류:', error);
+    }
+}
+
+// 월간 통계 로드
+async function loadMonthlyStats() {
+    try {
+        const response = await fetch(`/stats/api/monthly/?date=${currentDate}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            renderMonthlyBarChart(data.tag_stats);
+            renderMonthlyCalendar(data.daily_stats);
+            renderMonthlySummary(data);
+        }
+    } catch (error) {
+        console.error('월간 통계 로드 오류:', error);
+    }
+}
+
+// 태그 분석 로드
+async function loadTagAnalysis() {
+    try {
+        const response = await fetch('/stats/api/tags/');
+        const data = await response.json();
+        
+        if (data.success) {
+            renderTagTotalChart(data.tag_analysis);
+            renderTagFrequencyChart(data.tag_analysis);
+            renderTagAnalysisTable(data.tag_analysis);
+        }
+    } catch (error) {
+        console.error('태그 분석 로드 오류:', error);
+    }
+}
+
+// 차트 렌더링 함수들
+function renderDailyPieChart(tagStats) {
+    const ctx = document.getElementById('dailyPieChart').getContext('2d');
+    
+    // 기존 차트 삭제
+    if (charts.dailyPie) {
+        charts.dailyPie.destroy();
+    }
+    
+    if (tagStats.length === 0) {
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('데이터가 없습니다', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+    
+    charts.dailyPie = new Chart(ctx, {
+        type: 'pie',
+        data: {
+            labels: tagStats.map(tag => tag.name),
+            datasets: [{
+                data: tagStats.map(tag => tag.hours),
+                backgroundColor: tagStats.map(tag => tag.color),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const hours = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((hours / total) * 100).toFixed(1);
+                            return `${context.label}: ${hours}시간 (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderHourlyBarChart(hourlyStats) {
+    const ctx = document.getElementById('hourlyBarChart').getContext('2d');
+    
+    if (charts.hourlyBar) {
+        charts.hourlyBar.destroy();
+    }
+    
+    const hours = Array.from({length: 24}, (_, i) => `${i}시`);
+    
+    charts.hourlyBar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: hours,
+            datasets: [{
+                label: '활동량 (10분 단위)',
+                data: hourlyStats,
+                backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                borderColor: 'rgba(54, 162, 235, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 6
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function renderWeeklyLineChart(tagStats, weeklyData) {
+    const ctx = document.getElementById('weeklyLineChart').getContext('2d');
+    
+    if (charts.weeklyLine) {
+        charts.weeklyLine.destroy();
+    }
+    
+    const days = weeklyData.map(day => day.day_korean);
+    
+    charts.weeklyLine = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: days,
+            datasets: tagStats.map(tag => ({
+                label: tag.name,
+                data: tag.daily_hours,
+                borderColor: tag.color,
+                backgroundColor: tag.color + '20',
+                tension: 0.4,
+                fill: false
+            }))
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+}
+
+function renderWeeklyBarChart(weeklyData) {
+    const ctx = document.getElementById('weeklyBarChart').getContext('2d');
+    
+    if (charts.weeklyBar) {
+        charts.weeklyBar.destroy();
+    }
+    
+    charts.weeklyBar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: weeklyData.map(day => day.day_korean),
+            datasets: [{
+                label: '활동 시간',
+                data: weeklyData.map(day => day.total_minutes / 60),
+                backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function renderMonthlyBarChart(tagStats) {
+    const ctx = document.getElementById('monthlyBarChart').getContext('2d');
+    
+    if (charts.monthlyBar) {
+        charts.monthlyBar.destroy();
+    }
+    
+    charts.monthlyBar = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: tagStats.map(tag => tag.name),
+            datasets: [{
+                label: '사용 시간',
+                data: tagStats.map(tag => tag.total_hours),
+                backgroundColor: tagStats.map(tag => tag.color),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function renderTagTotalChart(tagAnalysis) {
+    const ctx = document.getElementById('tagTotalChart').getContext('2d');
+    
+    if (charts.tagTotal) {
+        charts.tagTotal.destroy();
+    }
+    
+    const top10 = tagAnalysis.slice(0, 10);
+    
+    charts.tagTotal = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: top10.map(tag => tag.name),
+            datasets: [{
+                label: '총 시간 (시간)',
+                data: top10.map(tag => tag.total_hours),
+                backgroundColor: top10.map(tag => tag.color),
+                borderWidth: 1
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+}
+
+function renderTagFrequencyChart(tagAnalysis) {
+    const ctx = document.getElementById('tagFrequencyChart').getContext('2d');
+    
+    if (charts.tagFreq) {
+        charts.tagFreq.destroy();
+    }
+    
+    charts.tagFreq = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: tagAnalysis.map(tag => tag.name),
+            datasets: [{
+                data: tagAnalysis.map(tag => tag.usage_frequency),
+                backgroundColor: tagAnalysis.map(tag => tag.color),
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.label}: ${context.parsed}%`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// 요약 정보 렌더링 함수들
+function renderDailySummary(data) {
+    const summary = document.getElementById('dailySummary');
+    
+    if (data.total_blocks === 0) {
+        summary.innerHTML = '<i class="fas fa-info-circle me-2"></i>선택한 날짜에 기록된 데이터가 없습니다.';
+        return;
+    }
+    
+    const topTag = data.tag_stats.length > 0 ? data.tag_stats[0] : null;
+    const peakHour = data.hourly_stats.indexOf(Math.max(...data.hourly_stats));
+    
+    summary.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>총 기록 시간:</strong> ${data.total_hours}시간<br>
+                <strong>기록률:</strong> ${data.fill_percentage}%<br>
+                <strong>사용된 태그:</strong> ${data.tag_stats.length}개
+            </div>
+            <div class="col-md-6">
+                ${topTag ? `<strong>최다 사용 태그:</strong> ${topTag.name} (${topTag.hours}시간)<br>` : ''}
+                <strong>가장 활발한 시간:</strong> ${peakHour}시~${peakHour + 1}시<br>
+                <strong>평균 블록당 시간:</strong> 10분
+            </div>
+        </div>
+    `;
+}
+
+function renderWeeklySummary(data) {
+    const summary = document.getElementById('weeklySummary');
+    
+    const mostActiveDay = data.weekly_data.reduce((max, day) => 
+        day.total_minutes > max.total_minutes ? day : max
+    );
+    
+    const avgDaily = data.week_total_hours / 7;
+    
+    summary.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>주간 총 시간:</strong> ${data.week_total_hours}시간<br>
+                <strong>일평균 시간:</strong> ${avgDaily.toFixed(1)}시간<br>
+                <strong>활동 요일:</strong> ${data.weekly_data.filter(d => d.total_blocks > 0).length}/7일
+            </div>
+            <div class="col-md-6">
+                <strong>가장 활발한 요일:</strong> ${mostActiveDay.day_korean}요일 (${(mostActiveDay.total_minutes / 60).toFixed(1)}시간)<br>
+                <strong>주간 기간:</strong> ${data.start_date} ~ ${data.end_date}<br>
+                <strong>태그 종류:</strong> ${data.tag_weekly_stats.length}개
+            </div>
+        </div>
+    `;
+}
+
+function renderMonthlySummary(data) {
+    const summary = document.getElementById('monthlySummary');
+    
+    const avgDaily = data.total_hours / data.total_days;
+    const activityRate = (data.active_days / data.total_days * 100).toFixed(1);
+    
+    summary.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <strong>월간 총 시간:</strong> ${data.total_hours}시간<br>
+                <strong>활동 일수:</strong> ${data.active_days}/${data.total_days}일 (${activityRate}%)<br>
+                <strong>일평균 시간:</strong> ${avgDaily.toFixed(1)}시간
+            </div>
+            <div class="col-md-6">
+                <strong>사용된 태그:</strong> ${data.tag_stats.length}개<br>
+                <strong>월간 기간:</strong> ${data.start_date} ~ ${data.end_date}<br>
+                <strong>총 블록 수:</strong> ${data.total_blocks}개
+            </div>
+        </div>
+    `;
+}
+
+function renderMonthlyCalendar(dailyStats) {
+    const calendar = document.getElementById('monthlyCalendar');
+    
+    if (dailyStats.length === 0) {
+        calendar.innerHTML = '<div class="text-center text-muted">데이터가 없습니다</div>';
+        return;
+    }
+    
+    let html = '<div class="row g-1">';
+    
+    dailyStats.forEach(day => {
+        const intensity = Math.min(day.fill_percentage / 20, 5); // 0-5 단계
+        const bgClass = intensity === 0 ? 'bg-light' : `bg-primary bg-opacity-${Math.ceil(intensity * 20)}`;
+        
+        html += `
+            <div class="col-sm-4 col-md-3 mb-1">
+                <div class="p-2 border rounded ${bgClass}" title="${day.date}: ${day.hours}시간">
+                    <small class="d-block">${new Date(day.date).getDate()}일</small>
+                    <small class="text-muted">${day.hours}h</small>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    calendar.innerHTML = html;
+}
+
+function renderTagAnalysisTable(tagAnalysis) {
+    const table = document.getElementById('tagAnalysisTable');
+    
+    if (tagAnalysis.length === 0) {
+        table.innerHTML = '<div class="text-center text-muted">분석할 데이터가 없습니다</div>';
+        return;
+    }
+    
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>태그</th>
+                        <th>총 시간</th>
+                        <th>사용 일수</th>
+                        <th>사용 빈도</th>
+                        <th>일평균</th>
+                        <th>최초/최근 사용</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    tagAnalysis.forEach(tag => {
+        html += `
+            <tr>
+                <td>
+                    <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
+                    ${tag.name}
+                </td>
+                <td><strong>${tag.total_hours}시간</strong></td>
+                <td>${tag.days_used}일</td>
+                <td>${tag.usage_frequency}%</td>
+                <td>${(tag.avg_daily_minutes / 60).toFixed(1)}시간</td>
+                <td>
+                    <small>${tag.first_used}<br>~ ${tag.last_used}</small>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += '</tbody></table></div>';
+    table.innerHTML = html;
+}
+
+// 유틸리티 함수
+function goToToday() {
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('dateSelector').value = today;
+    currentDate = today;
+    
+    const activeTab = document.querySelector('.nav-link.active').id;
+    loadStatsForActiveTab(activeTab);
+}
+</script>
 {% endblock %} 
