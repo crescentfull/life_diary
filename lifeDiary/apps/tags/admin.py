@@ -6,15 +6,20 @@ from .models import Tag
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
-    list_display = ['name', 'user', 'color_display', 'created_at']
-    list_filter = ['user', 'created_at']
+    list_display = ['name', 'user', 'is_default', 'color_display', 'created_at']
+    list_filter = ['is_default', 'user', 'created_at']
     search_fields = ['name', 'user__username']
-    ordering = ['user', 'name']
+    ordering = ['is_default', 'user', 'name']
     list_per_page = 25
     
     fieldsets = (
         (None, {
-            'fields': ('user', 'name', 'color')
+            'fields': ('name', 'color', 'is_default')
+        }),
+        ('사용자 정보', {
+            'fields': ('user',),
+            'classes': ('collapse',),
+            'description': '기본 태그인 경우 사용자를 비워두세요.'
         }),
         ('시간 정보', {
             'fields': ('created_at', 'updated_at'),

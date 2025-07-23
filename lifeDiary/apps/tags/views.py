@@ -26,11 +26,21 @@ def index(request: HttpRequest) -> HttpResponse:
 def create_tag(request):
     """
     새 태그 생성
+    - 일반 사용자: 개인 태그만 생성 가능
+    - 관리자(superuser): 기본 태그도 생성 가능
     """
     try:
         data = json.loads(request.body)
         name = data.get('name', '').strip()
         color = data.get('color', '').strip()
+        is_default = data.get('is_default', False)
+        
+        # 일반 사용자는 기본 태그 생성 불가
+        if is_default and not request.user.is_superuser:
+            return JsonResponse({
+                'success': False,
+                'message': '기본 태그는 관리자만 생성할 수 있습니다.'
+            }, status=403)
         
         if not name or not color:
             return JsonResponse({
@@ -52,15 +62,15 @@ def create_tag(request):
         
         # 새 태그 생성
         tag = Tag.objects.create(
-            user=request.user,
+            user=None if is_default else request.user,
             name=name,
             color=color,
-            is_default=False
+            is_default=is_default
         )
         
         return JsonResponse({
             'success': True,
-            'message': '태그가 생성되었습니다.',
+            'message': f'{"기본 " if is_default else ""}태그가 생성되었습니다.',
             'tag': {
                 'id': tag.id,
                 'name': tag.name,
@@ -79,14 +89,29 @@ def create_tag(request):
 @require_http_methods(["POST"])
 def update_tag(request, tag_id):
     """
-    태그 수정 (사용자 태그만)
+    태그 수정
+    - 일반 사용자: 본인의 사용자 태그만 수정 가능
+    - 관리자(superuser): 기본 태그도 수정 가능
     """
     try:
-        tag = get_object_or_404(Tag, id=tag_id, user=request.user, is_default=False)
+        # 관리자인 경우 모든 태그 수정 가능
+        if request.user.is_superuser:
+            tag = get_object_or_404(Tag, id=tag_id)
+        else:
+            # 일반 사용자는 본인의 사용자 태그만 수정 가능
+            tag = get_object_or_404(Tag, id=tag_id, user=request.user, is_default=False)
         
         data = json.loads(request.body)
         name = data.get('name', '').strip()
         color = data.get('color', '').strip()
+        is_default = data.get('is_default', tag.is_default)
+        
+        # 일반 사용자는 기본 태그로 변경 불가
+        if is_default and not request.user.is_superuser:
+            return JsonResponse({
+                'success': False,
+                'message': '기본 태그는 관리자만 설정할 수 있습니다.'
+            }, status=403)
         
         if not name or not color:
             return JsonResponse({
@@ -109,11 +134,13 @@ def update_tag(request, tag_id):
         # 태그 수정
         tag.name = name
         tag.color = color
+        tag.is_default = is_default
+        tag.user = None if is_default else request.user
         tag.save()
         
         return JsonResponse({
             'success': True,
-            'message': '태그가 수정되었습니다.',
+            'message': f'{"기본 " if tag.is_default else ""}태그가 수정되었습니다.',
             'tag': {
                 'id': tag.id,
                 'name': tag.name,
@@ -132,10 +159,17 @@ def update_tag(request, tag_id):
 @require_http_methods(["POST"])
 def delete_tag(request, tag_id):
     """
-    태그 삭제 (사용자 태그만, 사용 중이지 않은 경우만)
+    태그 삭제 
+    - 일반 사용자: 본인의 사용자 태그만 삭제 가능
+    - 관리자(superuser): 기본 태그도 삭제 가능
     """
     try:
-        tag = get_object_or_404(Tag, id=tag_id, user=request.user, is_default=False)
+        # 관리자인 경우 모든 태그 삭제 가능
+        if request.user.is_superuser:
+            tag = get_object_or_404(Tag, id=tag_id)
+        else:
+            # 일반 사용자는 본인의 사용자 태그만 삭제 가능
+            tag = get_object_or_404(Tag, id=tag_id, user=request.user, is_default=False)
         
         # 사용 중인 태그인지 확인
         usage_count = TimeBlock.objects.filter(tag=tag).count()
@@ -146,11 +180,12 @@ def delete_tag(request, tag_id):
             }, status=400)
         
         tag_name = tag.name
+        is_default = tag.is_default
         tag.delete()
         
         return JsonResponse({
             'success': True,
-            'message': f'"{tag_name}" 태그가 삭제되었습니다.'
+            'message': f'"{tag_name}" {"기본 " if is_default else ""}태그가 삭제되었습니다.'
         })
         
     except Exception as e:
@@ -171,13 +206,17 @@ def get_tags(request):
         
         tag_list = []
         for tag in tags:
+            # 관리자는 모든 태그 편집/삭제 가능, 일반 사용자는 본인 태그만
+            can_edit = not tag.is_default or request.user.is_superuser
+            can_delete = not tag.is_default or request.user.is_superuser
+            
             tag_list.append({
                 'id': tag.id,
                 'name': tag.name,
                 'color': tag.color,
                 'is_default': tag.is_default,
-                'can_edit': not tag.is_default,  # 기본 태그는 편집 불가
-                'can_delete': not tag.is_default  # 기본 태그는 삭제 불가
+                'can_edit': can_edit,
+                'can_delete': can_delete
             })
         
         return JsonResponse({
