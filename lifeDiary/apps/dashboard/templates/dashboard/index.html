@@ -441,7 +441,7 @@
                 }
                 
                 try {
-                    const response = await fetch('/dashboard/api/tags/create/', {
+                    const response = await fetch('/tags/api/create/', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -511,7 +511,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`/dashboard/api/tags/${tagId}/update/`, {
+                    const response = await fetch(`/tags/api/${tagId}/update/`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -705,7 +705,7 @@
         }
         
         try {
-            const response = await fetch('/dashboard/api/tags/');
+            const response = await fetch('/tags/api/');
             const result = await response.json();
             
             console.log('태그 API 응답:', result);
@@ -807,7 +807,7 @@
         }
         
         try {
-            const response = await fetch(`/dashboard/api/tags/${tagId}/delete/`, {
+            const response = await fetch(`/tags/api/${tagId}/delete/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -1232,7 +1232,7 @@
     // 태그 로딩 및 렌더링 기능
     async function loadAvailableTags() {
         try {
-            const response = await fetch('/dashboard/api/tags/');
+            const response = await fetch('/tags/api/');
             const result = await response.json();
             
             if (result.success) {
