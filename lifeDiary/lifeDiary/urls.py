@@ -18,7 +18,11 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from django.contrib.auth.decorators import user_passes_test
 from . import views
+
+# 관리자만 admin 패널 접근 가능하도록 제한
+admin.site.login = user_passes_test(lambda u: u.is_superuser, login_url='/')(admin.site.login)
 
 urlpatterns = [
     path("admin/", admin.site.urls),

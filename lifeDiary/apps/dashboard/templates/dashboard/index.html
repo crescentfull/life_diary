@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}대시보드 - {{ selected_date|date:"Y년 m월 d일" }} | 10분 단위 라이프 다이어리{% endblock %}
+{% block title %}대시보드 - {{ selected_date|date:"Y년 m월 d일" }} | 라이프 다이어리{% endblock %}
 
 {% block content %}
 <div class="row">
@@ -126,17 +126,11 @@
                 
                 <!-- 범례 -->
                 <div class="mt-3">
-                    <div class="d-flex flex-wrap gap-2">
-                        {% for tag in user_tags %}
-                            <span class="badge" style="background-color: {{ tag.color }};">
-                                {{ tag.name }}
-                            </span>
-                        {% empty %}
-                            <small class="text-muted">
-                                <i class="fas fa-info-circle me-1"></i>
-                                태그를 먼저 생성해주세요.
-                            </small>
-                        {% endfor %}
+                    <div class="d-flex flex-wrap gap-2" id="tagLegend">
+                        <div class="spinner-border spinner-border-sm text-secondary" role="status">
+                            <span class="visually-hidden">범례 로딩 중...</span>
+                        </div>
+                        <small class="text-muted">범례 로딩 중...</small>
                     </div>
                 </div>
             </div>
@@ -153,64 +147,64 @@
                 </h6>
             </div>
             <div class="card-body">
-                                 {% if user_tags %}
-                     <div class="mb-3">
-                         <div class="d-flex justify-content-between align-items-center mb-2">
-                             <label class="form-label mb-0">태그 선택</label>
-                             <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#usageHelp">
-                                 <i class="fas fa-question-circle"></i>
-                             </button>
-                         </div>
-                         
-                         <div class="collapse" id="usageHelp">
-                             <div class="alert alert-info alert-sm">
-                                 <small>
-                                     <strong>사용법:</strong><br>
-                                     • <strong>단일 선택:</strong> 슬롯 클릭<br>
-                                     • <strong>드래그 선택:</strong> 마우스로 드래그<br>
-                                     • <strong>다중 선택:</strong> Ctrl/Cmd + 클릭<br>
-                                     • <strong>터치:</strong> 터치 후 드래그
-                                 </small>
-                             </div>
-                         </div>
-                        <div class="d-grid gap-2">
-                            {% for tag in user_tags %}
-                                <button class="btn btn-outline-secondary btn-sm tag-btn" 
-                                        data-tag-id="{{ tag.id }}"
-                                        data-tag-color="{{ tag.color }}"
-                                        onclick="selectTag({{ tag.id }}, '{{ tag.color }}', '{{ tag.name }}')">
-                                    <span class="badge me-2" style="background-color: {{ tag.color }};">&nbsp;</span>
-                                    {{ tag.name }}
-                                </button>
-                            {% endfor %}
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">태그 선택</label>
+                        <div>
+                            <button type="button" class="btn btn-sm btn-outline-success me-1" id="createNewTagBtn">
+                                <i class="fas fa-plus"></i> 새 태그
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-primary me-1" id="manageTagsBtn">
+                                <i class="fas fa-cog"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="collapse" data-bs-target="#usageHelp" aria-expanded="false" aria-controls="usageHelp">
+                                <i class="fas fa-question-circle"></i>
+                            </button>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="memoInput" class="form-label">메모 (선택사항)</label>
-                        <textarea class="form-control" id="memoInput" rows="3" placeholder="메모를 입력하세요..."></textarea>
+                    <div class="collapse" id="usageHelp" data-bs-parent="">
+                        <div class="card border-info mt-2">
+                            <div class="card-body bg-light py-2">
+                                <small class="text-info">
+                                    <i class="fas fa-info-circle me-1"></i><strong>사용법:</strong><br>
+                                    • <strong>단일 선택:</strong> 슬롯 클릭<br>
+                                    • <strong>드래그 선택:</strong> 마우스로 드래그<br>
+                                    • <strong>다중 선택:</strong> Ctrl/Cmd + 클릭<br>
+                                    • <strong>터치:</strong> 터치 후 드래그<br><br>
+                                    <small class="text-muted">💡 이 도움말은 ? 버튼을 다시 클릭하면 닫힙니다.</small>
+                                </small>
+                            </div>
+                        </div>
+                        </div>
                     </div>
                     
-                    <div class="d-grid gap-2">
-                        <button class="btn btn-primary" onclick="saveSlot()" disabled id="saveBtn">
-                            <i class="fas fa-save me-1"></i>
-                            저장
-                        </button>
-                        <button class="btn btn-outline-danger" onclick="deleteSlot()" disabled id="deleteBtn">
-                            <i class="fas fa-trash me-1"></i>
-                            삭제
-                        </button>
+                    <!-- 태그 목록이 동적으로 로드됩니다 -->
+                    <div class="d-grid gap-2" id="tagContainer">
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">태그 로딩 중...</span>
+                            </div>
+                            <div class="mt-2 text-muted small">태그 로딩 중...</div>
+                        </div>
                     </div>
-                {% else %}
-                    <div class="text-center py-4">
-                        <i class="fas fa-tags text-muted mb-3" style="font-size: 3rem;"></i>
-                        <p class="text-muted">태그를 먼저 생성해주세요.</p>
-                        <a href="{% url 'tags:index' %}" class="btn btn-primary">
-                            <i class="fas fa-plus me-1"></i>
-                            태그 만들기
-                        </a>
-                    </div>
-                {% endif %}
+                </div>
+                
+                <div class="mb-3">
+                    <label for="memoInput" class="form-label">메모 (선택사항)</label>
+                    <textarea class="form-control" id="memoInput" rows="3" placeholder="메모를 입력하세요..."></textarea>
+                </div>
+                
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" onclick="saveSlot()" disabled id="saveBtn">
+                        <i class="fas fa-save me-1"></i>
+                        저장
+                    </button>
+                    <button class="btn btn-outline-danger" onclick="deleteSlot()" disabled id="deleteBtn">
+                        <i class="fas fa-trash me-1"></i>
+                        삭제
+                    </button>
+                </div>
             </div>
         </div>
         
@@ -230,6 +224,99 @@
         </div>
     </div>
 </div>
+
+<!-- 모달들 (endblock 안으로 이동) -->
+<!-- 태그 관리 모달 -->
+<div class="modal fade" id="tagManageModal" tabindex="-1" aria-labelledby="tagManageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tagManageModalLabel">
+                    <i class="fas fa-tags me-2"></i>태그 관리
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- 새 태그 생성 -->
+                <div class="card mb-3">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-plus me-2"></i>새 태그 만들기</h6>
+                    </div>
+                    <div class="card-body">
+                        <form id="createTagForm">
+                            <div class="mb-3">
+                                <label for="newTagName" class="form-label">태그명</label>
+                                <input type="text" class="form-control" id="newTagName" placeholder="예: 운동, 공부, 휴식">
+                            </div>
+                            <div class="mb-3">
+                                <label for="newTagColor" class="form-label">색상</label>
+                                <div class="d-flex align-items-center gap-2">
+                                    <input type="color" class="form-control form-control-color" id="newTagColor" value="#3498db">
+                                    <input type="text" class="form-control" id="newTagColorText" placeholder="#3498db" maxlength="7">
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-plus me-1"></i>태그 생성
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- 기존 태그 목록 -->
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0"><i class="fas fa-list me-2"></i>내 태그 목록</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="tagList">
+                            <!-- JavaScript로 동적 로드 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">닫기</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 태그 편집 모달 -->
+<div class="modal fade" id="tagEditModal" tabindex="-1" aria-labelledby="tagEditModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tagEditModalLabel">
+                    <i class="fas fa-edit me-2"></i>태그 편집
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTagForm">
+                    <input type="hidden" id="editTagId">
+                    <div class="mb-3">
+                        <label for="editTagName" class="form-label">태그명</label>
+                        <input type="text" class="form-control" id="editTagName">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editTagColor" class="form-label">색상</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="color" class="form-control form-control-color" id="editTagColor">
+                            <input type="text" class="form-control" id="editTagColorText" maxlength="7">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" id="saveTagBtn">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -238,16 +325,512 @@
     let selectedTag = null;
     let isDragging = false;
     let startSlot = null;
+    let availableTags = []; // 사용 가능한 태그 목록
     
-    // 날짜 변경 - 현대적인 방식
-    document.getElementById('dateSelector').addEventListener('change', (event) => {
-        const selectedDate = event.target.value;
-        const url = new URL(window.location);
-        url.searchParams.set('date', selectedDate);
-        window.location.href = url.toString();
+    // 페이지 로드 시 태그 목록 로드 및 이벤트 리스너 등록
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM 로드 완료 - 이벤트 리스너 등록 시작');
+        
+        // Bootstrap 로드 확인
+        if (typeof bootstrap === 'undefined') {
+            console.warn('Bootstrap이 아직 로드되지 않았습니다. 0.5초 후 재시도합니다.');
+            setTimeout(() => {
+                if (typeof bootstrap !== 'undefined') {
+                    console.log('Bootstrap 로드 완료');
+                } else {
+                    console.error('Bootstrap 로드 실패 - 모달 기능이 제한될 수 있습니다.');
+                }
+            }, 500);
+        } else {
+            console.log('Bootstrap 로드 확인됨');
+        }
+        
+        // 버튼 존재 확인
+        const createBtn = document.getElementById('createNewTagBtn');
+        const manageBtn = document.getElementById('manageTagsBtn');
+        
+        console.log('createNewTagBtn 찾음:', !!createBtn);
+        console.log('manageTagsBtn 찾음:', !!manageBtn);
+        
+        loadAvailableTags();
+        
+        // 날짜 변경 - 현대적인 방식
+        const dateSelector = document.getElementById('dateSelector');
+        if (dateSelector) {
+            dateSelector.addEventListener('change', (event) => {
+                const selectedDate = event.target.value;
+                const url = new URL(window.location);
+                url.searchParams.set('date', selectedDate);
+                window.location.href = url.toString();
+            });
+        }
+        
+        // 새 태그 만들기 버튼 (addEventListener만 사용)
+        if (createBtn) {
+            createBtn.addEventListener('click', function() {
+                console.log('🚀 새 태그 버튼 클릭됨 (addEventListener)');
+                if (window.openCreateTagModal) {
+                    window.openCreateTagModal();
+                }
+            });
+            console.log('새 태그 버튼 이벤트 리스너 등록 완료');
+        }
+
+        // 태그 관리 모달 열기 (addEventListener만 사용)
+        if (manageBtn) {
+            manageBtn.addEventListener('click', function() {
+                console.log('🚀 태그 관리 버튼 클릭됨 (addEventListener)');
+                if (window.openManageTagModal) {
+                    window.openManageTagModal();
+                }
+            });
+            console.log('태그 관리 버튼 이벤트 리스너 등록 완료');
+        }
+
+        // 색상 입력 동기화
+        const newTagColor = document.getElementById('newTagColor');
+        const newTagColorText = document.getElementById('newTagColorText');
+        const editTagColor = document.getElementById('editTagColor');
+        const editTagColorText = document.getElementById('editTagColorText');
+        
+        if (newTagColor && newTagColorText) {
+            newTagColor.addEventListener('input', function() {
+                newTagColorText.value = this.value;
+            });
+            
+            newTagColorText.addEventListener('input', function() {
+                if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                    newTagColor.value = this.value;
+                }
+            });
+        }
+
+        if (editTagColor && editTagColorText) {
+            editTagColor.addEventListener('input', function() {
+                editTagColorText.value = this.value;
+            });
+            
+            editTagColorText.addEventListener('input', function() {
+                if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                    editTagColor.value = this.value;
+                }
+            });
+        }
+
+        // 새 태그 생성 폼
+        const createTagForm = document.getElementById('createTagForm');
+        if (createTagForm) {
+            createTagForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                console.log('새 태그 생성 폼 제출됨');
+                
+                const nameInput = document.getElementById('newTagName');
+                const colorInput = document.getElementById('newTagColor');
+                
+                if (!nameInput || !colorInput) {
+                    alert('폼 요소를 찾을 수 없습니다.');
+                    return;
+                }
+                
+                const name = nameInput.value.trim();
+                const color = colorInput.value;
+                
+                if (!name) {
+                    alert('태그명을 입력해주세요.');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch('/dashboard/api/tags/create/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ name, color })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // 폼 초기화
+                        nameInput.value = '';
+                        colorInput.value = '#3498db';
+                        if (newTagColorText) newTagColorText.value = '#3498db';
+                        
+                        // 태그 목록 새로고침
+                        if (window.loadTagList) loadTagList();
+                        
+                        // 성공 메시지 표시 (alert 대신 console.log)
+                        console.log('태그 생성 성공:', result.message);
+                        
+                        // 메인 페이지의 태그 목록도 새로고침
+                        refreshTagList();
+                        
+                        // 성공 표시를 위한 시각적 피드백
+                        const createForm = document.getElementById('createTagForm');
+                        if (createForm) {
+                            createForm.style.border = '2px solid #28a745';
+                            setTimeout(() => {
+                                createForm.style.border = '';
+                            }, 2000);
+                        }
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('태그 생성 오류:', error);
+                    alert('태그 생성 중 오류가 발생했습니다.');
+                }
+            });
+            console.log('새 태그 생성 폼 이벤트 리스너 등록 완료');
+        }
+
+        // 태그 저장 (편집)
+        const saveTagBtn = document.getElementById('saveTagBtn');
+        if (saveTagBtn) {
+            saveTagBtn.addEventListener('click', async function() {
+                console.log('태그 저장 버튼 클릭됨');
+                
+                const tagIdInput = document.getElementById('editTagId');
+                const nameInput = document.getElementById('editTagName');
+                const colorInput = document.getElementById('editTagColor');
+                
+                if (!tagIdInput || !nameInput || !colorInput) {
+                    alert('편집 폼 요소를 찾을 수 없습니다.');
+                    return;
+                }
+                
+                const tagId = tagIdInput.value;
+                const name = nameInput.value.trim();
+                const color = colorInput.value;
+                
+                if (!name) {
+                    alert('태그명을 입력해주세요.');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/dashboard/api/tags/${tagId}/update/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({ name, color })
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        // 태그 목록 새로고침
+                        if (window.loadTagList) loadTagList();
+                        
+                        // 성공 메시지 표시 (alert 대신 console.log)
+                        console.log('태그 수정 성공:', result.message);
+                        
+                        // 메인 페이지의 태그 목록도 새로고침
+                        refreshTagList();
+                        
+                        // 성공 표시를 위한 시각적 피드백
+                        const editForm = document.getElementById('editTagForm');
+                        if (editForm) {
+                            editForm.style.border = '2px solid #28a745';
+                            setTimeout(() => {
+                                editForm.style.border = '';
+                            }, 2000);
+                        }
+                        
+                        // 3초 후 자동으로 모달 닫기 (사용자가 확인할 시간 제공)
+                        setTimeout(() => {
+                            const editModal = document.getElementById('tagEditModal');
+                            if (editModal) {
+                                const modalInstance = bootstrap.Modal.getInstance(editModal);
+                                if (modalInstance) modalInstance.hide();
+                            }
+                        }, 2000);
+                    } else {
+                        alert(result.message);
+                    }
+                } catch (error) {
+                    console.error('태그 수정 오류:', error);
+                    alert('태그 수정 중 오류가 발생했습니다.');
+                }
+            });
+            console.log('태그 저장 버튼 이벤트 리스너 등록 완료');
+        }
+        
+        console.log('모든 이벤트 리스너 등록 완료');
     });
     
-    // 오늘로 이동
+    // 안전한 모달 생성 함수 (개선된 버전)
+    function createSafeModal(modalId) {
+        return new Promise((resolve) => {
+            // DOM이 완전히 로드되었는지 확인
+            if (document.readyState !== 'complete') {
+                console.log('DOM이 아직 완전히 로드되지 않았습니다. 잠시 기다립니다...');
+                setTimeout(() => {
+                    resolve(createSafeModal(modalId));
+                }, 100);
+                return;
+            }
+            
+            // Bootstrap이 로드되었는지 확인
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap이 아직 로드되지 않았습니다.');
+                alert('페이지가 완전히 로드될 때까지 잠시 기다려주세요.');
+                resolve(null);
+                return;
+            }
+            
+            // 모달 요소 확인 (최대 5초 동안 재시도)
+            let attempts = 0;
+            const maxAttempts = 50; // 5초
+            
+            const findModal = () => {
+                const modalElement = document.getElementById(modalId);
+                
+                if (modalElement) {
+                    console.log(`모달 요소 찾음: ${modalId}`);
+                    
+                    try {
+                        // 기존 모달 인스턴스가 있다면 제거
+                        const existingModal = bootstrap.Modal.getInstance(modalElement);
+                        if (existingModal) {
+                            existingModal.dispose();
+                        }
+                        
+                        // 새 모달 인스턴스 생성
+                        const modal = new bootstrap.Modal(modalElement, {
+                            backdrop: true,
+                            keyboard: true,
+                            focus: true
+                        });
+                        
+                        resolve(modal);
+                    } catch (error) {
+                        console.error('모달 생성 중 오류:', error);
+                        resolve(null);
+                    }
+                } else {
+                    attempts++;
+                    if (attempts < maxAttempts) {
+                        console.log(`모달 요소를 찾는 중... (${attempts}/${maxAttempts})`);
+                        setTimeout(findModal, 100);
+                    } else {
+                        console.error(`모달 요소를 찾을 수 없습니다: ${modalId} (${maxAttempts}번 시도 후 포기)`);
+                        alert('모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+                        resolve(null);
+                    }
+                }
+            };
+            
+            findModal();
+        });
+    }
+
+    // 전역 함수들 (onclick 이벤트용) - Promise 방식으로 업데이트
+    window.openCreateTagModal = async function() {
+        console.log('🔥 openCreateTagModal 호출됨 - 호출 스택:', new Error().stack);
+        
+        try {
+            const modal = await createSafeModal('tagManageModal');
+            if (!modal) {
+                console.error('모달 생성 실패');
+                return;
+            }
+            
+            const modalElement = document.getElementById('tagManageModal');
+            if (!modalElement) {
+                console.error('모달 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            // 모달이 완전히 열린 후 실행
+            modalElement.addEventListener('shown.bs.modal', function() {
+                console.log('모달이 완전히 열림 - 태그 목록 로드 시작');
+                if (window.loadTagList) loadTagList();
+                
+                // 새 태그 이름 입력란에 포커스
+                setTimeout(() => {
+                    const nameInput = document.getElementById('newTagName');
+                    if (nameInput) nameInput.focus();
+                }, 100);
+            }, { once: true }); // 한 번만 실행
+            
+            modal.show();
+        } catch (error) {
+            console.error('모달 열기 중 오류:', error);
+            alert('모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+        }
+    };
+    
+    window.openManageTagModal = async function() {
+        console.log('🔥 openManageTagModal 호출됨 - 호출 스택:', new Error().stack);
+        
+        try {
+            const modal = await createSafeModal('tagManageModal');
+            if (!modal) {
+                console.error('모달 생성 실패');
+                return;
+            }
+            
+            const modalElement = document.getElementById('tagManageModal');
+            if (!modalElement) {
+                console.error('모달 요소를 찾을 수 없습니다');
+                return;
+            }
+            
+            // 모달이 완전히 열린 후 실행
+            modalElement.addEventListener('shown.bs.modal', function() {
+                console.log('모달이 완전히 열림 - 태그 목록 로드 시작');
+                if (window.loadTagList) loadTagList();
+            }, { once: true }); // 한 번만 실행
+            
+            modal.show();
+        } catch (error) {
+            console.error('모달 열기 중 오류:', error);
+            alert('모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+        }
+    };
+
+    // 태그 목록 로드 함수 (전역 함수로 추가)
+    window.loadTagList = async function loadTagList() {
+        console.log('태그 목록 로드 시작');
+        
+        const tagListElement = document.getElementById('tagList');
+        if (!tagListElement) {
+            console.error('tagList 요소를 찾을 수 없습니다. 모달이 아직 준비되지 않았습니다.');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/dashboard/api/tags/');
+            const result = await response.json();
+            
+            console.log('태그 API 응답:', result);
+            
+            if (result.success) {
+                renderTagList(result.tags);
+                console.log('태그 목록 렌더링 완료');
+            } else {
+                tagListElement.innerHTML = 
+                    `<div class="alert alert-danger">태그 로드 실패: ${result.message}</div>`;
+            }
+        } catch (error) {
+            console.error('태그 로드 오류:', error);
+            if (tagListElement) {
+                tagListElement.innerHTML = 
+                    '<div class="alert alert-danger">태그 로드 중 오류가 발생했습니다.</div>';
+            }
+        }
+    };
+
+    // 태그 목록 렌더링 함수
+    function renderTagList(tags) {
+        const tagList = document.getElementById('tagList');
+        
+        if (!tagList) {
+            console.error('tagList 요소를 찾을 수 없습니다. 모달이 아직 로드되지 않았을 수 있습니다.');
+            return;
+        }
+        
+        if (tags.length === 0) {
+            tagList.innerHTML = '<p class="text-muted">등록된 태그가 없습니다.</p>';
+            return;
+        }
+        
+        let html = '';
+        tags.forEach(tag => {
+            html += `
+                <div class="d-flex align-items-center justify-content-between mb-2 p-2 border rounded">
+                    <div class="d-flex align-items-center">
+                        <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
+                        <span>${tag.name}</span>
+                        ${tag.is_default ? '<small class="text-muted ms-2">(기본 태그)</small>' : ''}
+                    </div>
+                    <div>
+                        ${tag.can_edit ? `
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editTag(${tag.id}, '${tag.name}', '${tag.color}')">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        ` : ''}
+                        ${tag.can_delete ? `
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTag(${tag.id}, '${tag.name}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        tagList.innerHTML = html;
+    }
+
+    // 태그 편집 모달 열기 (전역 함수로 추가) - Promise 방식으로 업데이트
+    window.editTag = async function editTag(tagId, tagName, tagColor) {
+        try {
+            const editTagIdInput = document.getElementById('editTagId');
+            const editTagNameInput = document.getElementById('editTagName');
+            const editTagColorInput = document.getElementById('editTagColor');
+            const editTagColorTextInput = document.getElementById('editTagColorText');
+            
+            if (!editTagIdInput || !editTagNameInput || !editTagColorInput || !editTagColorTextInput) {
+                console.error('태그 편집 폼 요소를 찾을 수 없습니다.');
+                alert('태그 편집 폼이 준비되지 않았습니다. 페이지를 새로고침해주세요.');
+                return;
+            }
+            
+            editTagIdInput.value = tagId;
+            editTagNameInput.value = tagName;
+            editTagColorInput.value = tagColor;
+            editTagColorTextInput.value = tagColor;
+            
+            const modal = await createSafeModal('tagEditModal');
+            if (modal) {
+                modal.show();
+            } else {
+                console.error('태그 편집 모달 생성 실패');
+                alert('태그 편집 모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+            }
+        } catch (error) {
+            console.error('태그 편집 모달 열기 중 오류:', error);
+            alert('태그 편집 모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+        }
+    };
+
+    // 태그 삭제 (전역 함수로 추가)
+    window.deleteTag = async function deleteTag(tagId, tagName) {
+        if (!confirm(`"${tagName}" 태그를 삭제하시겠습니까?\n\n※ 사용 중인 태그는 삭제할 수 없습니다.`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/dashboard/api/tags/${tagId}/delete/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                loadTagList();
+                alert(result.message);
+                refreshTagList();
+            } else {
+                alert(result.message);
+            }
+        } catch (error) {
+            console.error('태그 삭제 오류:', error);
+            alert('태그 삭제 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 기타 함수들
     const goToToday = () => {
         const url = new URL(window.location);
         url.searchParams.delete('date');
@@ -286,7 +869,7 @@
         // 버튼 활성화
         updateButtons();
     };
-    
+
     // 선택 해제
     const clearSelection = () => {
         selectedSlots.clear();
@@ -294,26 +877,77 @@
             slot.classList.remove('selected');
         });
     };
+
+    // 드래그 시작
+    const startDrag = (slotIndex) => {
+        isDragging = true;
+        startSlot = slotIndex;
+        
+        // 기존 선택 해제
+        clearSelection();
+        selectedSlots.add(slotIndex);
+        
+        const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+        slotElement?.classList.add('selected');
+        
+        // 마우스 이벤트 방지
+        event.preventDefault();
+    };
     
-    // 태그 선택
-    const selectTag = (tagId, tagColor, tagName) => {
-        // 이전 선택 해제
-        document.querySelectorAll('.tag-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
+    // 드래그 중
+    const dragOver = (slotIndex) => {
+        if (!isDragging || startSlot === null) return;
         
-        // 새 선택 적용
-        event.target.classList.add('active');
+        // 시작점과 현재점 사이의 모든 슬롯 선택
+        const start = Math.min(startSlot, slotIndex);
+        const end = Math.max(startSlot, slotIndex);
         
-        selectedTag = {
-            id: tagId,
-            color: tagColor,
-            name: tagName
-        };
+        // 기존 선택 해제
+        clearSelection();
         
+        // 범위 내 모든 슬롯 선택
+        for (let i = start; i <= end; i++) {
+            selectedSlots.add(i);
+            const slotElement = document.querySelector(`[data-slot-index="${i}"]`);
+            slotElement?.classList.add('selected');
+        }
+        
+        showSlotInfo(Array.from(selectedSlots));
         updateButtons();
     };
     
+    // 드래그 종료
+    const endDrag = () => {
+        if (isDragging) {
+            isDragging = false;
+            startSlot = null;
+            
+            // 최종 선택 상태 업데이트
+            showSlotInfo(Array.from(selectedSlots));
+            updateButtons();
+        }
+    };
+
+    // 터치 이벤트 처리
+    const handleTouchMove = (event) => {
+        if (!isDragging) return;
+        
+        event.preventDefault();
+        const touch = event.touches[0];
+        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
+        
+        if (elementBelow && elementBelow.classList.contains('time-slot')) {
+            const slotIndex = parseInt(elementBelow.dataset.slotIndex);
+            if (!isNaN(slotIndex)) {
+                dragOver(slotIndex);
+            }
+        }
+    };
+    
+    // 전역 마우스 이벤트 리스너
+    document.addEventListener('mouseup', endDrag);
+    document.addEventListener('mouseleave', endDrag);
+
     // 슬롯 정보 표시 (다중 선택 지원)
     const showSlotInfo = (slotIndexes) => {
         if (!slotIndexes || slotIndexes.length === 0) {
@@ -388,7 +1022,7 @@
             slotInfoCard.style.display = 'block';
         }
     };
-    
+
     // 버튼 상태 업데이트
     const updateButtons = () => {
         const saveBtn = document.getElementById('saveBtn');
@@ -407,79 +1041,27 @@
             deleteBtn.disabled = !(selectedSlots.size > 0 && hasFilledSlot);
         }
     };
-    
-    // 드래그 시작
-    const startDrag = (slotIndex) => {
-        isDragging = true;
-        startSlot = slotIndex;
         
-        // 기존 선택 해제
-        clearSelection();
-        selectedSlots.add(slotIndex);
+    const selectTag = (tagId, tagColor, tagName) => {
+        // 이전 선택 해제
+        document.querySelectorAll('.tag-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
         
-        const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
-        slotElement?.classList.add('selected');
+        // 새 선택 적용
+        event.target.classList.add('active');
         
-        // 마우스 이벤트 방지
-        event.preventDefault();
-    };
-    
-    // 드래그 중
-    const dragOver = (slotIndex) => {
-        if (!isDragging || startSlot === null) return;
+        selectedTag = {
+            id: tagId,
+            color: tagColor,
+            name: tagName
+        };
         
-        // 시작점과 현재점 사이의 모든 슬롯 선택
-        const start = Math.min(startSlot, slotIndex);
-        const end = Math.max(startSlot, slotIndex);
-        
-        // 기존 선택 해제
-        clearSelection();
-        
-        // 범위 내 모든 슬롯 선택
-        for (let i = start; i <= end; i++) {
-            selectedSlots.add(i);
-            const slotElement = document.querySelector(`[data-slot-index="${i}"]`);
-            slotElement?.classList.add('selected');
-        }
-        
-        showSlotInfo(Array.from(selectedSlots));
         updateButtons();
     };
-    
-    // 드래그 종료
-    const endDrag = () => {
-        if (isDragging) {
-            isDragging = false;
-            startSlot = null;
-            
-            // 최종 선택 상태 업데이트
-            showSlotInfo(Array.from(selectedSlots));
-            updateButtons();
-        }
-    };
-    
-    // 터치 이벤트 처리
-    const handleTouchMove = (event) => {
-        if (!isDragging) return;
-        
-        event.preventDefault();
-        const touch = event.touches[0];
-        const elementBelow = document.elementFromPoint(touch.clientX, touch.clientY);
-        
-        if (elementBelow && elementBelow.classList.contains('time-slot')) {
-            const slotIndex = parseInt(elementBelow.dataset.slotIndex);
-            if (!isNaN(slotIndex)) {
-                dragOver(slotIndex);
-            }
-        }
-    };
-    
-    // 전역 마우스 이벤트 리스너
-    document.addEventListener('mouseup', endDrag);
-    document.addEventListener('mouseleave', endDrag);
-    
-    // 슬롯 저장 (다중 선택 지원)
-    const saveSlot = () => {
+
+    // 슬롯 저장 (실제 데이터베이스에 저장)
+    const saveSlot = async () => {
         if (selectedSlots.size === 0 || selectedTag === null) {
             alert('슬롯과 태그를 선택해주세요.');
             return;
@@ -487,45 +1069,86 @@
         
         const memoInput = document.getElementById('memoInput');
         const memo = memoInput?.value || '';
+        const selectedDate = document.getElementById('dateSelector')?.value || new Date().toISOString().split('T')[0];
         
-        // 선택된 모든 슬롯에 태그 적용
-        selectedSlots.forEach(slotIndex => {
-            const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
-            if (!slotElement) return;
+        try {
+            const response = await fetch('/dashboard/api/save-blocks/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    slot_indexes: Array.from(selectedSlots),
+                    tag_id: selectedTag.id,
+                    memo: memo,
+                    date: selectedDate
+                })
+            });
             
-            slotElement.style.backgroundColor = selectedTag.color;
-            slotElement.classList.add('filled');
-            slotElement.title = `${slotElement.dataset.time} - ${selectedTag.name}${memo ? ': ' + memo : ''}`;
+            const result = await response.json();
             
-            // 내부 HTML 업데이트
-            slotElement.innerHTML = `
-                <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
-                    <small class="text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
-                        ${selectedTag.name.substring(0, 3)}
-                    </small>
-                </div>
-            `;
-        });
-        
-        // 상태 초기화
-        if (memoInput) memoInput.value = '';
-        clearSelection();
-        selectedTag = null;
-        
-        // 태그 버튼 선택 해제
-        document.querySelectorAll('.tag-btn').forEach(btn => {
-            btn.classList.remove('active');
-        });
-        
-        updateButtons();
-        const slotInfoCard = document.getElementById('slotInfoCard');
-        if (slotInfoCard) slotInfoCard.style.display = 'none';
-        
-        alert(`${selectedSlots.size}개 슬롯이 저장되었습니다! (임시 - 새로고침하면 사라집니다)`);
+            if (result.success) {
+                // 성공시 UI 업데이트
+                selectedSlots.forEach(slotIndex => {
+                    const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+                    if (!slotElement) return;
+                    
+                    slotElement.style.backgroundColor = selectedTag.color;
+                    slotElement.classList.add('filled');
+                    slotElement.title = `${slotElement.dataset.time} - ${selectedTag.name}${memo ? ': ' + memo : ''}`;
+                    
+                    // 내부 HTML 업데이트
+                    slotElement.innerHTML = `
+                        <div class="position-absolute w-100 h-100 d-flex align-items-center justify-content-center">
+                            <small class="text-white fw-bold" style="text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">
+                                ${selectedTag.name.substring(0, 3)}
+                            </small>
+                        </div>
+                    `;
+                });
+                
+                // 상태 초기화
+                if (memoInput) memoInput.value = '';
+                clearSelection();
+                selectedTag = null;
+                
+                // 태그 버튼 선택 해제
+                document.querySelectorAll('.tag-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                });
+                
+                updateButtons();
+                const slotInfoCard = document.getElementById('slotInfoCard');
+                if (slotInfoCard) slotInfoCard.style.display = 'none';
+                
+                // 성공 메시지를 콘솔에 표시 (모달이 사라지지 않도록)
+                console.log('슬롯 저장 성공:', result.message);
+                
+                // 시각적 피드백 제공
+                const notification = document.createElement('div');
+                notification.className = 'alert alert-success position-fixed';
+                notification.style.cssText = 'top: 20px; right: 20px; z-index: 9999; animation: fadeInOut 3s forwards;';
+                notification.innerHTML = `<i class="fas fa-check-circle me-2"></i>${result.message}`;
+                document.body.appendChild(notification);
+                
+                // 3초 후 알림 제거
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.parentNode.removeChild(notification);
+                    }
+                }, 3000);
+            } else {
+                alert('저장 실패: ' + result.message);
+            }
+        } catch (error) {
+            console.error('저장 중 오류:', error);
+            alert('저장 중 오류가 발생했습니다.');
+        }
     };
     
-    // 슬롯 삭제 (다중 선택 지원)
-    const deleteSlot = () => {
+    // 슬롯 삭제 (실제 데이터베이스에서 삭제)
+    const deleteSlot = async () => {
         if (selectedSlots.size === 0) {
             alert('삭제할 슬롯을 선택해주세요.');
             return;
@@ -542,24 +1165,175 @@
         }
         
         if (confirm(`${filledSlots.length}개의 기록된 슬롯을 삭제하시겠습니까?`)) {
-            filledSlots.forEach(slotIndex => {
-                const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
-                if (!slotElement) return;
+            const selectedDate = document.getElementById('dateSelector')?.value || new Date().toISOString().split('T')[0];
+            
+            try {
+                const response = await fetch('/dashboard/api/delete-blocks/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        slot_indexes: filledSlots,
+                        date: selectedDate
+                    })
+                });
                 
-                slotElement.style.backgroundColor = '';
-                slotElement.classList.remove('filled');
-                slotElement.title = `${slotElement.dataset.time} - 빈 슬롯`;
-                slotElement.innerHTML = '';
-            });
-            
-            clearSelection();
-            updateButtons();
-            
-            const slotInfoCard = document.getElementById('slotInfoCard');
-            if (slotInfoCard) slotInfoCard.style.display = 'none';
-            
-            alert(`${filledSlots.length}개 슬롯이 삭제되었습니다! (임시 - 새로고침하면 원래대로 돌아옵니다)`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 성공시 UI 업데이트
+                    filledSlots.forEach(slotIndex => {
+                        const slotElement = document.querySelector(`[data-slot-index="${slotIndex}"]`);
+                        if (!slotElement) return;
+                        
+                        slotElement.style.backgroundColor = '';
+                        slotElement.classList.remove('filled');
+                        slotElement.title = `${slotElement.dataset.time} - 빈 슬롯`;
+                        slotElement.innerHTML = '';
+                    });
+                    
+                    clearSelection();
+                    updateButtons();
+                    
+                    const slotInfoCard = document.getElementById('slotInfoCard');
+                    if (slotInfoCard) slotInfoCard.style.display = 'none';
+                    
+                    alert(result.message);
+                    
+                    // 페이지 새로고침으로 통계 업데이트
+                    window.location.reload();
+                } else {
+                    alert('삭제 실패: ' + result.message);
+                }
+            } catch (error) {
+                console.error('삭제 중 오류:', error);
+                alert('삭제 중 오류가 발생했습니다.');
+            }
         }
     };
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // 태그 로딩 및 렌더링 기능
+    async function loadAvailableTags() {
+        try {
+            const response = await fetch('/dashboard/api/tags/');
+            const result = await response.json();
+            
+            if (result.success) {
+                availableTags = result.tags;
+                renderTagContainer(result.tags);
+                renderTagLegend(result.tags);
+            } else {
+                showTagError('태그 로드 실패: ' + result.message);
+            }
+        } catch (error) {
+            console.error('태그 로드 오류:', error);
+            showTagError('태그 로드 중 오류가 발생했습니다.');
+        }
+    }
+    
+    function renderTagContainer(tags) {
+        const tagContainer = document.getElementById('tagContainer');
+        
+        if (tags.length === 0) {
+            tagContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-tags text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-3">태그를 먼저 생성해주세요.</p>
+                    <button class="btn btn-primary btn-sm" id="createFirstTagBtn">
+                        <i class="fas fa-plus me-1"></i>
+                        첫 번째 태그 만들기
+                    </button>
+                </div>
+            `;
+            
+            document.getElementById('createFirstTagBtn').addEventListener('click', function() {
+                if (window.openCreateTagModal) {
+                    window.openCreateTagModal();
+                }
+            });
+            return;
+        }
+        
+        let html = '';
+        tags.forEach(tag => {
+            html += `
+                <button class="btn btn-outline-secondary btn-sm tag-btn" 
+                        data-tag-id="${tag.id}"
+                        data-tag-color="${tag.color}"
+                        data-is-default="${tag.is_default}"
+                        onclick="selectTag(${tag.id}, '${tag.color}', '${tag.name}')">
+                    <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
+                    ${tag.name}
+                    ${tag.is_default ? '<small class="text-muted ms-1">(기본)</small>' : ''}
+                </button>
+            `;
+        });
+        
+        tagContainer.innerHTML = html;
+    }
+    
+    function renderTagLegend(tags) {
+        const tagLegend = document.getElementById('tagLegend');
+        
+        if (tags.length === 0) {
+            tagLegend.innerHTML = `
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    태그를 먼저 생성해주세요.
+                </small>
+            `;
+            return;
+        }
+        
+        let html = '';
+        tags.forEach(tag => {
+            html += `
+                <span class="badge" style="background-color: ${tag.color};">
+                    ${tag.name}
+                </span>
+            `;
+        });
+        
+        tagLegend.innerHTML = html;
+    }
+    
+    function showTagError(message) {
+        const tagContainer = document.getElementById('tagContainer');
+        const tagLegend = document.getElementById('tagLegend');
+        
+        const errorHtml = `
+            <div class="alert alert-danger alert-sm">
+                <i class="fas fa-exclamation-triangle me-1"></i>
+                ${message}
+                <button class="btn btn-sm btn-outline-danger ms-2" onclick="loadAvailableTags()">
+                    <i class="fas fa-redo"></i> 다시 시도
+                </button>
+            </div>
+        `;
+        
+        tagContainer.innerHTML = errorHtml;
+        tagLegend.innerHTML = '<small class="text-danger">태그 로드 실패</small>';
+    }
+    
+    function refreshTagList() {
+        loadAvailableTags();
+    }
 </script>
 {% endblock %} 

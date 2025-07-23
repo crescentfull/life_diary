@@ -6,7 +6,7 @@ def index(request: HttpRequest) -> HttpResponse:
     메인 홈페이지
     """
     context = {
-        'project_name': '10분 단위 라이프 다이어리',
+        'project_name': '라이프 다이어리',
         'project_description': '하루 24시간을 10분 단위로 직관적으로 기록하고 시각화하는 서비스입니다.',
         'features': [
             {
