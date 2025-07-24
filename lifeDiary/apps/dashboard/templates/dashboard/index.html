@@ -226,6 +226,40 @@
 </div>
 
 <!-- 모달들 (endblock 안으로 이동) -->
+<!-- 새 태그 추가 모달 -->
+<div class="modal fade" id="createTagModal" tabindex="-1" aria-labelledby="createTagModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createTagModalLabel">
+                    <i class="fas fa-plus me-2"></i>새 태그 만들기
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createTagForm">
+                    <div class="mb-3">
+                        <label for="newTagName" class="form-label">태그명</label>
+                        <input type="text" class="form-control" id="newTagName" placeholder="예: 운동, 공부, 휴식">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newTagColor" class="form-label">색상</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="color" class="form-control form-control-color" id="newTagColor" value="#3498db">
+                            <input type="text" class="form-control" id="newTagColorText" placeholder="#3498db" maxlength="7">
+                        </div>
+                    </div>
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>태그 생성
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- 태그 관리 모달 -->
 <div class="modal fade" id="tagManageModal" tabindex="-1" aria-labelledby="tagManageModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -237,41 +271,9 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- 새 태그 생성 -->
-                <div class="card mb-3">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-plus me-2"></i>새 태그 만들기</h6>
-                    </div>
-                    <div class="card-body">
-                        <form id="createTagForm">
-                            <div class="mb-3">
-                                <label for="newTagName" class="form-label">태그명</label>
-                                <input type="text" class="form-control" id="newTagName" placeholder="예: 운동, 공부, 휴식">
-                            </div>
-                            <div class="mb-3">
-                                <label for="newTagColor" class="form-label">색상</label>
-                                <div class="d-flex align-items-center gap-2">
-                                    <input type="color" class="form-control form-control-color" id="newTagColor" value="#3498db">
-                                    <input type="text" class="form-control" id="newTagColorText" placeholder="#3498db" maxlength="7">
-                                </div>
-                            </div>
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-plus me-1"></i>태그 생성
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
                 <!-- 기존 태그 목록 -->
-                <div class="card">
-                    <div class="card-header">
-                        <h6 class="mb-0"><i class="fas fa-list me-2"></i>내 태그 목록</h6>
-                    </div>
-                    <div class="card-body">
-                        <div id="tagList">
-                            <!-- JavaScript로 동적 로드 -->
-                        </div>
-                    </div>
+                <div id="tagList">
+                    <!-- JavaScript로 동적 로드 -->
                 </div>
             </div>
             <div class="modal-footer">
@@ -417,74 +419,7 @@
             });
         }
 
-        // 새 태그 생성 폼
-        const createTagForm = document.getElementById('createTagForm');
-        if (createTagForm) {
-            createTagForm.addEventListener('submit', async function(e) {
-                e.preventDefault();
-                console.log('새 태그 생성 폼 제출됨');
-                
-                const nameInput = document.getElementById('newTagName');
-                const colorInput = document.getElementById('newTagColor');
-                
-                if (!nameInput || !colorInput) {
-                    alert('폼 요소를 찾을 수 없습니다.');
-                    return;
-                }
-                
-                const name = nameInput.value.trim();
-                const color = colorInput.value;
-                
-                if (!name) {
-                    alert('태그명을 입력해주세요.');
-                    return;
-                }
-                
-                try {
-                    const response = await fetch('/tags/api/create/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRFToken': getCookie('csrftoken')
-                        },
-                        body: JSON.stringify({ name, color })
-                    });
-                    
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        // 폼 초기화
-                        nameInput.value = '';
-                        colorInput.value = '#3498db';
-                        if (newTagColorText) newTagColorText.value = '#3498db';
-                        
-                        // 태그 목록 새로고침
-                        if (window.loadTagList) loadTagList();
-                        
-                        // 성공 메시지 표시 (alert 대신 console.log)
-                        console.log('태그 생성 성공:', result.message);
-                        
-                        // 메인 페이지의 태그 목록도 새로고침
-                        refreshTagList();
-                        
-                        // 성공 표시를 위한 시각적 피드백
-                        const createForm = document.getElementById('createTagForm');
-                        if (createForm) {
-                            createForm.style.border = '2px solid #28a745';
-                            setTimeout(() => {
-                                createForm.style.border = '';
-                            }, 2000);
-                        }
-                    } else {
-                        alert(result.message);
-                    }
-                } catch (error) {
-                    console.error('태그 생성 오류:', error);
-                    alert('태그 생성 중 오류가 발생했습니다.');
-                }
-            });
-            console.log('새 태그 생성 폼 이벤트 리스너 등록 완료');
-        }
+        // 새 태그 생성 폼 이벤트 리스너는 모달이 열릴 때 동적으로 등록
 
         // 태그 저장 (편집)
         const saveTagBtn = document.getElementById('saveTagBtn');
@@ -631,25 +566,27 @@
 
     // 전역 함수들 (onclick 이벤트용) - Promise 방식으로 업데이트
     window.openCreateTagModal = async function() {
-        console.log('🔥 openCreateTagModal 호출됨 - 호출 스택:', new Error().stack);
+        console.log('🔥 openCreateTagModal 호출됨 - 새 태그 추가 모달');
         
         try {
-            const modal = await createSafeModal('tagManageModal');
+            const modal = await createSafeModal('createTagModal');
             if (!modal) {
-                console.error('모달 생성 실패');
+                console.error('새 태그 모달 생성 실패');
                 return;
             }
             
-            const modalElement = document.getElementById('tagManageModal');
+            const modalElement = document.getElementById('createTagModal');
             if (!modalElement) {
-                console.error('모달 요소를 찾을 수 없습니다');
+                console.error('새 태그 모달 요소를 찾을 수 없습니다');
                 return;
             }
             
             // 모달이 완전히 열린 후 실행
             modalElement.addEventListener('shown.bs.modal', function() {
-                console.log('모달이 완전히 열림 - 태그 목록 로드 시작');
-                if (window.loadTagList) loadTagList();
+                console.log('새 태그 모달이 완전히 열림');
+                
+                // 새 태그 생성 폼 이벤트 리스너 등록
+                setupCreateTagForm();
                 
                 // 새 태그 이름 입력란에 포커스
                 setTimeout(() => {
@@ -660,39 +597,146 @@
             
             modal.show();
         } catch (error) {
-            console.error('모달 열기 중 오류:', error);
-            alert('모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+            console.error('새 태그 모달 열기 중 오류:', error);
+            alert('새 태그 모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
         }
     };
     
     window.openManageTagModal = async function() {
-        console.log('🔥 openManageTagModal 호출됨 - 호출 스택:', new Error().stack);
+        console.log('🔥 openManageTagModal 호출됨 - 태그 관리 모달');
         
         try {
             const modal = await createSafeModal('tagManageModal');
             if (!modal) {
-                console.error('모달 생성 실패');
+                console.error('태그 관리 모달 생성 실패');
                 return;
             }
             
             const modalElement = document.getElementById('tagManageModal');
             if (!modalElement) {
-                console.error('모달 요소를 찾을 수 없습니다');
+                console.error('태그 관리 모달 요소를 찾을 수 없습니다');
                 return;
             }
             
             // 모달이 완전히 열린 후 실행
             modalElement.addEventListener('shown.bs.modal', function() {
-                console.log('모달이 완전히 열림 - 태그 목록 로드 시작');
+                console.log('태그 관리 모달이 완전히 열림 - 태그 목록 로드 시작');
                 if (window.loadTagList) loadTagList();
             }, { once: true }); // 한 번만 실행
             
             modal.show();
         } catch (error) {
-            console.error('모달 열기 중 오류:', error);
-            alert('모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
+            console.error('태그 관리 모달 열기 중 오류:', error);
+            alert('태그 관리 모달을 열 수 없습니다. 페이지를 새로고침해보세요.');
         }
     };
+
+    // 새 태그 생성 폼 설정 함수
+    function setupCreateTagForm() {
+        const createTagForm = document.getElementById('createTagForm');
+        const newTagColor = document.getElementById('newTagColor');
+        const newTagColorText = document.getElementById('newTagColorText');
+        
+        if (!createTagForm) {
+            console.error('createTagForm을 찾을 수 없습니다.');
+            return;
+        }
+        
+        // 색상 입력 동기화
+        if (newTagColor && newTagColorText) {
+            // 기존 이벤트 리스너 제거 (중복 방지)
+            newTagColor.replaceWith(newTagColor.cloneNode(true));
+            newTagColorText.replaceWith(newTagColorText.cloneNode(true));
+            
+            // 새로운 참조 가져오기
+            const colorInput = document.getElementById('newTagColor');
+            const colorTextInput = document.getElementById('newTagColorText');
+            
+            colorInput.addEventListener('input', function() {
+                colorTextInput.value = this.value;
+            });
+            
+            colorTextInput.addEventListener('input', function() {
+                if (this.value.match(/^#[0-9A-Fa-f]{6}$/)) {
+                    colorInput.value = this.value;
+                }
+            });
+        }
+        
+        // 폼 제출 이벤트 리스너
+        createTagForm.replaceWith(createTagForm.cloneNode(true)); // 기존 이벤트 제거
+        const newForm = document.getElementById('createTagForm');
+        
+        newForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            console.log('새 태그 생성 폼 제출됨');
+            
+            const nameInput = document.getElementById('newTagName');
+            const colorInput = document.getElementById('newTagColor');
+            const colorTextInput = document.getElementById('newTagColorText');
+            
+            if (!nameInput || !colorInput) {
+                alert('폼 요소를 찾을 수 없습니다.');
+                return;
+            }
+            
+            const name = nameInput.value.trim();
+            const color = colorInput.value;
+            
+            if (!name) {
+                alert('태그명을 입력해주세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/tags/api/create/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ name, color })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 폼 초기화
+                    nameInput.value = '';
+                    colorInput.value = '#3498db';
+                    if (colorTextInput) colorTextInput.value = '#3498db';
+                    
+                    // 메인 페이지의 태그 목록 새로고침
+                    refreshTagList();
+                    
+                    // 성공 메시지 표시 (console.log)
+                    console.log('태그 생성 성공:', result.message);
+                    
+                    // 성공 표시를 위한 시각적 피드백
+                    newForm.style.border = '2px solid #28a745';
+                    setTimeout(() => {
+                        newForm.style.border = '';
+                    }, 2000);
+                    
+                    // 2초 후 모달 닫기
+                    setTimeout(() => {
+                        const createModal = document.getElementById('createTagModal');
+                        if (createModal) {
+                            const modalInstance = bootstrap.Modal.getInstance(createModal);
+                            if (modalInstance) modalInstance.hide();
+                        }
+                    }, 2000);
+                } else {
+                    alert(result.message);
+                }
+            } catch (error) {
+                console.error('태그 생성 오류:', error);
+                alert('태그 생성 중 오류가 발생했습니다.');
+            }
+        });
+        
+        console.log('새 태그 생성 폼 이벤트 리스너 등록 완료');
+    }
 
     // 태그 목록 로드 함수 (전역 함수로 추가)
     window.loadTagList = async function loadTagList() {
@@ -736,27 +780,48 @@
         }
         
         if (tags.length === 0) {
-            tagList.innerHTML = '<p class="text-muted">등록된 태그가 없습니다.</p>';
+            tagList.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-tags text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted mb-3">등록된 태그가 없습니다.</p>
+                    <button class="btn btn-primary btn-sm" onclick="window.openCreateTagModal()">
+                        <i class="fas fa-plus me-1"></i>
+                        첫 번째 태그 만들기
+                    </button>
+                </div>
+            `;
             return;
         }
         
-        let html = '';
+        let html = `
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0">
+                    <i class="fas fa-list me-2"></i>내 태그 목록 (${tags.length}개)
+                </h6>
+                <button class="btn btn-sm btn-outline-success" onclick="window.openCreateTagModal()">
+                    <i class="fas fa-plus me-1"></i>새 태그 추가
+                </button>
+            </div>
+        `;
+        
         tags.forEach(tag => {
             html += `
-                <div class="d-flex align-items-center justify-content-between mb-2 p-2 border rounded">
+                <div class="d-flex align-items-center justify-content-between mb-2 p-3 border rounded">
                     <div class="d-flex align-items-center">
-                        <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
-                        <span>${tag.name}</span>
-                        ${tag.is_default ? '<small class="text-muted ms-2">(기본 태그)</small>' : ''}
+                        <span class="badge me-3" style="background-color: ${tag.color}; width: 20px; height: 20px;">&nbsp;</span>
+                        <div>
+                            <span class="fw-bold">${tag.name}</span>
+                            ${tag.is_default ? '<small class="text-muted ms-2">(기본 태그)</small>' : ''}
+                        </div>
                     </div>
                     <div>
                         ${tag.can_edit ? `
-                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editTag(${tag.id}, '${tag.name}', '${tag.color}')">
+                            <button class="btn btn-sm btn-outline-primary me-1" onclick="editTag(${tag.id}, '${tag.name}', '${tag.color}')" title="편집">
                                 <i class="fas fa-edit"></i>
                             </button>
                         ` : ''}
                         ${tag.can_delete ? `
-                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTag(${tag.id}, '${tag.name}')">
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteTag(${tag.id}, '${tag.name}')" title="삭제">
                                 <i class="fas fa-trash"></i>
                             </button>
                         ` : ''}
