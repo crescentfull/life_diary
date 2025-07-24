@@ -1,0 +1,157 @@
+/* Dashboard Specific Styles */
+
+/* 시간 그리드 스타일 */
+.time-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 2px;
+    max-width: 100%;
+    overflow: auto;
+}
+
+/* 시간 슬롯 스타일 */
+.time-slot {
+    position: relative;
+    aspect-ratio: 1;
+    min-height: 30px;
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background-color: #f8f9fa;
+    user-select: none;
+}
+
+.time-slot:hover {
+    border-color: #007bff;
+    transform: scale(1.05);
+    z-index: 1;
+}
+
+.time-slot.selected {
+    border: 2px solid #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+    z-index: 2;
+}
+
+.time-slot.filled {
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.time-slot.filled:hover {
+    border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* 슬롯 시간 표시 */
+.slot-time {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 8px;
+    color: #666;
+    font-weight: 500;
+    line-height: 1;
+    pointer-events: none;
+}
+
+.time-slot.filled .slot-time {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* 태그 버튼 스타일 */
+.tag-btn {
+    transition: all 0.2s ease;
+    border-radius: 6px;
+}
+
+.tag-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.tag-btn.active {
+    background-color: #007bff !important;
+    border-color: #007bff !important;
+    color: white !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+}
+
+/* 알림 애니메이션 */
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+    15%, 85% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    100% {
+        opacity: 0;
+        transform: translateX(100%);
+    }
+}
+
+/* 모달 개선 */
+.modal-content {
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    border-radius: 12px 12px 0 0;
+}
+
+/* 폼 스타일 개선 */
+.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.15);
+}
+
+/* 색상 입력 스타일 */
+.form-control-color {
+    width: 50px;
+    height: 38px;
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+}
+
+/* 통계 카드 개선 */
+.card {
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* 반응형 개선 */
+@media (max-width: 768px) {
+    .time-grid {
+        grid-template-columns: repeat(6, 1fr);
+        gap: 1px;
+    }
+    
+    .time-slot {
+        min-height: 25px;
+        font-size: 0.7rem;
+    }
+    
+    .slot-time {
+        font-size: 6px;
+    }
+}
+
+@media (max-width: 576px) {
+    .time-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+    
+    .time-slot {
+        min-height: 20px;
+        font-size: 0.6rem;
+    }
+}

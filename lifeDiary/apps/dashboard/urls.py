@@ -4,8 +4,10 @@ from . import views
 app_name = 'dashboard'
 
 urlpatterns = [
+    # 메인 대시보드
     path('', views.index, name='index'),
-    path('api/slot/<int:slot_index>/', views.get_slot_data, name='get_slot_data'),
-    path('api/save-blocks/', views.save_time_blocks, name='save_time_blocks'),
-    path('api/delete-blocks/', views.delete_time_blocks, name='delete_time_blocks'),
+    
+    # RESTful API - Time Blocks
+    path('api/blocks/', views.time_blocks_handler, name='time_blocks'),  # GET, POST, DELETE
+    path('api/blocks/<int:slot_index>/', views.get_slot_data, name='slot_detail'),  # GET: 개별 조회
 ] 
