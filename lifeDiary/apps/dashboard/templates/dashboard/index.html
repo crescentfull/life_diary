@@ -977,13 +977,25 @@
             // 슬롯 데이터에서 메모 가져오기
             const selectedDate = document.getElementById('dateSelector')?.value || new Date().toISOString().split('T')[0];
             
+            // 태그 이름 추출
+            let tagName = '';
+            if (slotElement.classList.contains('filled')) {
+                // title에서 태그명만 추출 (형태: "시간 - 태그명" 또는 "시간 - 태그명: 메모")
+                const titleParts = slotElement.title.split(' - ');
+                if (titleParts.length > 1) {
+                    const tagPart = titleParts[1];
+                    // 메모가 있으면 콜론 앞부분만 가져오기
+                    tagName = tagPart.split(':')[0];
+                }
+            }
+            
             infoHTML = `
                 <div class="mb-2">
                     <strong>시간:</strong> ${timeRange}
                 </div>
                 <div class="mb-2">
-                    <strong>현재:</strong> 
-                    ${slotElement.classList.contains('filled') ? slotElement.title : '<span class="text-muted">빈 슬롯</span>'}
+                    <strong>상태:</strong> 
+                    ${slotElement.classList.contains('filled') ? tagName : '<span class="text-muted">빈 슬롯</span>'}
                 </div>
             `;
             
