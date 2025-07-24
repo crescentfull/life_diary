@@ -30,7 +30,7 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <i class="fas fa-clock text-primary me-2"></i>
                             <div>
-                                <div class="fw-bold">{{ total_slots }}</div>
+                                <div class="fw-bold" id="totalSlots">{{ total_slots }}</div>
                                 <small class="text-muted">총 슬롯</small>
                             </div>
                         </div>
@@ -39,7 +39,7 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <i class="fas fa-check-circle text-success me-2"></i>
                             <div>
-                                <div class="fw-bold">{{ filled_slots }}</div>
+                                <div class="fw-bold stats-update" id="filledSlots">{{ filled_slots }}</div>
                                 <small class="text-muted">기록된 슬롯</small>
                             </div>
                         </div>
@@ -48,7 +48,7 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <i class="fas fa-chart-pie text-info me-2"></i>
                             <div>
-                                <div class="fw-bold">{{ fill_percentage }}%</div>
+                                <div class="fw-bold stats-update" id="fillPercentage">{{ fill_percentage }}%</div>
                                 <small class="text-muted">기록률</small>
                             </div>
                         </div>
@@ -57,7 +57,7 @@
                         <div class="d-flex align-items-center justify-content-center">
                             <i class="fas fa-hourglass-half text-warning me-2"></i>
                             <div>
-                                <div class="fw-bold">{{ total_hours }}시간 {{ remaining_minutes }}분</div>
+                                <div class="fw-bold stats-update" id="totalTime">{{ total_hours }}시간 {{ remaining_minutes }}분</div>
                                 <small class="text-muted">총 기록 시간</small>
                             </div>
                         </div>
@@ -327,5 +327,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'dashboard/js/dashboard.js' %}"></script>
+<!-- Dashboard JavaScript (ES6 Modules) -->
+<script type="module" src="{% static 'dashboard/js/main.js' %}"></script>
 {% endblock %} 

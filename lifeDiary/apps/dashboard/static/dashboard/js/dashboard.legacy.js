@@ -132,6 +132,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
     loadAvailableTags();
     setupColorSyncronization();
+    
+    // 통계 시스템 초기화 (약간 지연 후 실행)
+    setTimeout(() => {
+        initializeStatistics();
+    }, 500);
 });
 
 /**
@@ -946,6 +951,9 @@ const saveSlot = async () => {
                 `;
             });
             
+            // 통계 실시간 갱신
+            debouncedUpdateStats();
+            
             // 상태 초기화
             resetUI();
             showNotification(result.message);
@@ -996,9 +1004,11 @@ const deleteSlot = async () => {
                     slotElement.innerHTML = '';
                 });
                 
+                // 통계 실시간 갱신
+                debouncedUpdateStats();
+                
                 resetUI();
-                alert(result.message);
-                window.location.reload(); // 통계 업데이트
+                showNotification(result.message, 'success');
             } else {
                 alert('삭제 실패: ' + result.message);
             }
@@ -1137,4 +1147,139 @@ function showTagError(message) {
 
 function refreshTagList() {
     loadAvailableTags();
+}
+
+// ===== 통계 실시간 갱신 기능 =====
+
+/**
+ * 현재 채워진 슬롯 개수 계산
+ * @returns {number} 채워진 슬롯 수
+ */
+function calculateFilledSlots() {
+    return document.querySelectorAll('.time-slot.filled').length;
+}
+
+/**
+ * 통계 데이터 계산
+ * @returns {Object} 계산된 통계 데이터
+ */
+function calculateStats() {
+    const filledSlots = calculateFilledSlots();
+    const totalSlots = 144; // 24시간 * 6슬롯(10분 단위)
+    
+    const fillPercentage = totalSlots > 0 ? 
+        Math.round((filledSlots / totalSlots) * 100 * 10) / 10 : 0;
+    
+    const totalMinutes = filledSlots * 10;
+    const totalHours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+    
+    return {
+        totalSlots,
+        filledSlots,
+        fillPercentage,
+        totalMinutes,
+        totalHours,
+        remainingMinutes
+    };
+}
+
+/**
+ * 통계 UI 갱신 (애니메이션 포함)
+ * @param {Object} stats - 계산된 통계 데이터 (선택적)
+ */
+function updateStatistics(stats = null) {
+    // 통계 계산 (전달되지 않은 경우)
+    if (!stats) {
+        stats = calculateStats();
+    }
+    
+    // DOM 요소들 가져오기
+    const elements = {
+        totalSlots: document.getElementById('totalSlots'),
+        filledSlots: document.getElementById('filledSlots'),
+        fillPercentage: document.getElementById('fillPercentage'),
+        totalTime: document.getElementById('totalTime')
+    };
+    
+    // 요소가 없으면 종료
+    if (!elements.filledSlots || !elements.fillPercentage || !elements.totalTime) {
+        console.warn('통계 표시 요소를 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 애니메이션과 함께 값 업데이트
+    updateElementWithAnimation(elements.filledSlots, stats.filledSlots.toString());
+    updateElementWithAnimation(elements.fillPercentage, `${stats.fillPercentage}%`);
+    
+    const timeText = stats.totalHours > 0 || stats.remainingMinutes > 0 ?
+        `${stats.totalHours}시간 ${stats.remainingMinutes}분` : '0시간 0분';
+    updateElementWithAnimation(elements.totalTime, timeText);
+    
+    console.log(`📊 통계 갱신: ${stats.filledSlots}/${stats.totalSlots} (${stats.fillPercentage}%) - ${timeText}`);
+}
+
+/**
+ * 요소 값을 애니메이션과 함께 업데이트
+ * @param {HTMLElement} element - 업데이트할 요소
+ * @param {string} newValue - 새로운 값
+ */
+function updateElementWithAnimation(element, newValue) {
+    if (!element || element.textContent === newValue) return;
+    
+    // CSS 클래스 기반 애니메이션 적용
+    element.classList.add('stats-update');
+    
+    // 하이라이트 효과
+    element.classList.add('stats-highlight');
+    
+    // 값 변경
+    element.textContent = newValue;
+    
+    // 애니메이션 원복
+    setTimeout(() => {
+        element.classList.remove('stats-highlight');
+    }, 400);
+    
+    // 펄스 효과 (선택적)
+    if (element.textContent !== '0' && element.textContent !== '0%' && element.textContent !== '0시간 0분') {
+        element.style.animation = 'pulse 0.5s ease-in-out';
+        setTimeout(() => {
+            element.style.animation = '';
+        }, 500);
+    }
+}
+
+/**
+ * 통계 갱신 디바운스 함수
+ * 연속적인 호출을 방지하여 성능 최적화
+ */
+const debouncedUpdateStats = debounce(updateStatistics, 100);
+
+/**
+ * 디바운스 유틸리티 함수
+ * @param {Function} func - 실행할 함수
+ * @param {number} wait - 대기 시간 (ms)
+ * @returns {Function} 디바운스된 함수
+ */
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func.apply(this, args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+/**
+ * 페이지 로드 시 초기 통계 설정
+ */
+function initializeStatistics() {
+    // 초기 통계 계산 및 표시
+    updateStatistics();
+    
+    console.log('📊 통계 시스템 초기화 완료');
 } 
