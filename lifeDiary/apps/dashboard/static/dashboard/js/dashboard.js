@@ -203,7 +203,7 @@ async function handleTagEdit() {
     }
     
     try {
-        const result = await apiCall(`/tags/api/${tagId}/update/`, 'POST', { name, color });
+        const result = await apiCall(`/tags/api/tags/${tagId}/`, 'PUT', { name, color });
         
         if (result.success) {
             // 태그 목록 새로고침
@@ -427,14 +427,14 @@ function setupCreateTagForm() {
         }
         
         try {
-            const response = await fetch('/tags/api/create/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ name, color })
-            });
+                const response = await fetch('/tags/api/tags/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookie('csrftoken')
+        },
+        body: JSON.stringify({ name, color })
+    });
             
             const result = await response.json();
             
@@ -487,7 +487,7 @@ window.loadTagList = async function loadTagList() {
     }
     
     try {
-        const response = await fetch('/tags/api/');
+        const response = await fetch('/tags/api/tags/');
         const result = await response.json();
         
         console.log('태그 API 응답:', result);
@@ -610,8 +610,8 @@ window.deleteTag = async function deleteTag(tagId, tagName) {
     }
     
     try {
-        const response = await fetch(`/tags/api/${tagId}/delete/`, {
-            method: 'POST',
+        const response = await fetch(`/tags/api/tags/${tagId}/`, {
+            method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': getCookie('csrftoken')
@@ -1035,7 +1035,7 @@ function resetUI() {
 // 태그 로딩 및 렌더링 기능
 async function loadAvailableTags() {
     try {
-        const response = await fetch('/tags/api/');
+        const response = await fetch('/tags/api/tags/');
         const result = await response.json();
         
         if (result.success) {
