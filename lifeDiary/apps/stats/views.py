@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import datetime, date, timedelta
@@ -36,22 +37,50 @@ def index(request: HttpRequest) -> HttpResponse:
     }
     return render(request, 'stats/index.html', context)
 
+
+class StatsAPIView:
+    """
+    통계 API를 위한 기본 클래스
+    """
+    
+    @staticmethod
+    def parse_date(date_str: str, default: date = None) -> date:
+        """날짜 문자열을 파싱하여 date 객체로 변환"""
+        if not date_str:
+            return default or date.today()
+        try:
+            return datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return default or date.today()
+    
+    @staticmethod
+    def get_user_blocks(user, **filters):
+        """사용자의 TimeBlock 쿼리셋 반환"""
+        return TimeBlock.objects.filter(user=user, **filters).select_related('tag')
+    
+    @staticmethod
+    def success_response(data: dict) -> JsonResponse:
+        """성공 응답 생성"""
+        return JsonResponse({'success': True, **data})
+    
+    @staticmethod
+    def error_response(message: str, status: int = 400) -> JsonResponse:
+        """에러 응답 생성"""
+        return JsonResponse({'success': False, 'error': message}, status=status)
+
+
 @login_required
+@require_http_methods(["GET"])
 def daily_stats(request):
     """
     일별 통계 API
+    GET /stats/api/daily/?date=YYYY-MM-DD
     """
-    selected_date_str = request.GET.get('date', date.today().strftime('%Y-%m-%d'))
-    try:
-        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
-    except ValueError:
-        selected_date = date.today()
+    api = StatsAPIView()
+    selected_date = api.parse_date(request.GET.get('date'))
     
     # 해당 날짜의 시간 블록들
-    time_blocks = TimeBlock.objects.filter(
-        user=request.user,
-        date=selected_date
-    ).select_related('tag')
+    time_blocks = api.get_user_blocks(request.user, date=selected_date)
     
     # 태그별 시간 집계
     tag_stats = {}
@@ -81,8 +110,7 @@ def daily_stats(request):
     for tag_data in tag_stats.values():
         tag_data['hours'] = round(tag_data['minutes'] / 60, 1)
     
-    return JsonResponse({
-        'success': True,
+    return api.success_response({
         'date': selected_date.strftime('%Y-%m-%d'),
         'tag_stats': list(tag_stats.values()),
         'hourly_stats': hourly_stats,
@@ -91,16 +119,16 @@ def daily_stats(request):
         'fill_percentage': round((len(time_blocks) / 144) * 100, 1)
     })
 
+
 @login_required
+@require_http_methods(["GET"])
 def weekly_stats(request):
     """
     주간 통계 API
+    GET /stats/api/weekly/?date=YYYY-MM-DD
     """
-    selected_date_str = request.GET.get('date', date.today().strftime('%Y-%m-%d'))
-    try:
-        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
-    except ValueError:
-        selected_date = date.today()
+    api = StatsAPIView()
+    selected_date = api.parse_date(request.GET.get('date'))
     
     # 주간 시작일 (월요일)
     start_of_week = selected_date - timedelta(days=selected_date.weekday())
@@ -112,10 +140,7 @@ def weekly_stats(request):
     
     for date_item in week_dates:
         # 해당 날짜의 블록들
-        daily_blocks = TimeBlock.objects.filter(
-            user=request.user,
-            date=date_item
-        ).select_related('tag')
+        daily_blocks = api.get_user_blocks(request.user, date=date_item)
         
         daily_tag_stats = {}
         for block in daily_blocks:
@@ -150,8 +175,7 @@ def weekly_stats(request):
         tag_data['total_hours'] = round(sum(tag_data['daily_minutes']) / 60, 1)
         tag_data['daily_hours'] = [round(m / 60, 1) for m in tag_data['daily_minutes']]
     
-    return JsonResponse({
-        'success': True,
+    return api.success_response({
         'start_date': start_of_week.strftime('%Y-%m-%d'),
         'end_date': week_dates[-1].strftime('%Y-%m-%d'),
         'weekly_data': weekly_data,
@@ -159,16 +183,16 @@ def weekly_stats(request):
         'week_total_hours': round(sum(day['total_minutes'] for day in weekly_data) / 60, 1)
     })
 
+
 @login_required
+@require_http_methods(["GET"])
 def monthly_stats(request):
     """
     월간 통계 API
+    GET /stats/api/monthly/?date=YYYY-MM-DD
     """
-    selected_date_str = request.GET.get('date', date.today().strftime('%Y-%m-%d'))
-    try:
-        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date()
-    except ValueError:
-        selected_date = date.today()
+    api = StatsAPIView()
+    selected_date = api.parse_date(request.GET.get('date'))
     
     # 월의 시작일과 종료일
     start_of_month = selected_date.replace(day=1)
@@ -178,10 +202,10 @@ def monthly_stats(request):
         end_of_month = start_of_month.replace(month=start_of_month.month + 1) - timedelta(days=1)
     
     # 월간 데이터
-    monthly_blocks = TimeBlock.objects.filter(
-        user=request.user,
+    monthly_blocks = api.get_user_blocks(
+        request.user, 
         date__range=[start_of_month, end_of_month]
-    ).select_related('tag')
+    )
     
     # 일별 통계
     daily_stats = {}
@@ -236,8 +260,7 @@ def monthly_stats(request):
     
     tag_list.sort(key=lambda x: x['total_hours'], reverse=True)
     
-    return JsonResponse({
-        'success': True,
+    return api.success_response({
         'month': selected_date.strftime('%Y-%m'),
         'start_date': start_of_month.strftime('%Y-%m-%d'),
         'end_date': end_of_month.strftime('%Y-%m-%d'),
@@ -249,13 +272,18 @@ def monthly_stats(request):
         'total_days': (end_of_month - start_of_month).days + 1
     })
 
+
 @login_required
+@require_http_methods(["GET"])
 def tag_analysis(request):
     """
     태그별 종합 분석 API
+    GET /stats/api/tags/
     """
+    api = StatsAPIView()
+    
     # 전체 기간 태그 사용 통계
-    all_blocks = TimeBlock.objects.filter(user=request.user).select_related('tag')
+    all_blocks = api.get_user_blocks(request.user)
     
     tag_analysis_data = {}
     date_range = set()
@@ -304,8 +332,7 @@ def tag_analysis(request):
     
     analysis_list.sort(key=lambda x: x['total_hours'], reverse=True)
     
-    return JsonResponse({
-        'success': True,
+    return api.success_response({
         'tag_analysis': analysis_list,
         'total_tags': len(analysis_list),
         'total_blocks': len(all_blocks),
