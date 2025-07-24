@@ -38,7 +38,6 @@ class CustomLoginView(LoginView):
     커스텀 로그인 뷰
     """
     template_name = 'users/login.html'
-    success_url = reverse_lazy('home')
     
     def get_form(self, form_class=None):
         form = super().get_form(form_class)
@@ -46,6 +45,10 @@ class CustomLoginView(LoginView):
         form.fields['username'].widget.attrs.update({'class': 'form-control'})
         form.fields['password'].widget.attrs.update({'class': 'form-control'})
         return form
+    
+    def get_success_url(self):
+        """로그인 성공 후 리다이렉트 URL"""
+        return reverse_lazy('home')
     
     def form_valid(self, form):
         messages.success(self.request, f'{form.get_user().username}님, 환영합니다!')
