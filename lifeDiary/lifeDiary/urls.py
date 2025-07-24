@@ -27,7 +27,10 @@ admin.site.login = user_passes_test(lambda u: u.is_superuser, login_url='/')(adm
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", views.index, name='home'),
-    path("accounts/login/", RedirectView.as_view(pattern_name='admin:login', permanent=False)),
+    
+    # 인증 관련 URL
+    path("accounts/", include('apps.users.urls')),
+    
     path("dashboard/", include('apps.dashboard.urls')),
     path("tags/", include('apps.tags.urls')),
     path("stats/", include('apps.stats.urls')),
