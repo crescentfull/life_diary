@@ -2,6 +2,15 @@
 
 {% block title %}대시보드 - {{ selected_date|date:"Y년 m월 d일" }} | 라이프 다이어리{% endblock %}
 
+{% block extra_css %}
+<style>
+/* 태그 관리 모달 위에서 다른 모달이 열릴 때 z-index를 높여 맨 앞으로 오게 함 */
+#createTagModal, #tagEditModal {
+    z-index: 1060;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="row">
     <!-- 날짜 선택 및 통계 -->
@@ -709,23 +718,15 @@
                     // 메인 페이지의 태그 목록 새로고침
                     refreshTagList();
                     
-                    // 성공 메시지 표시 (console.log)
-                    console.log('태그 생성 성공:', result.message);
+                    // 모달 닫기
+                    const createModal = document.getElementById('createTagModal');
+                    if (createModal) {
+                        const modalInstance = bootstrap.Modal.getInstance(createModal);
+                        if (modalInstance) modalInstance.hide();
+                    }
                     
-                    // 성공 표시를 위한 시각적 피드백
-                    newForm.style.border = '2px solid #28a745';
-                    setTimeout(() => {
-                        newForm.style.border = '';
-                    }, 2000);
-                    
-                    // 2초 후 모달 닫기
-                    setTimeout(() => {
-                        const createModal = document.getElementById('createTagModal');
-                        if (createModal) {
-                            const modalInstance = bootstrap.Modal.getInstance(createModal);
-                            if (modalInstance) modalInstance.hide();
-                        }
-                    }, 2000);
+                    // 성공 알림창 표시
+                    alert(result.message);
                 } else {
                     alert(result.message);
                 }
@@ -867,7 +868,7 @@
 
     // 태그 삭제 (전역 함수로 추가)
     window.deleteTag = async function deleteTag(tagId, tagName) {
-        if (!confirm(`"${tagName}" 태그를 삭제하시겠습니까?\n\n※ 사용 중인 태그는 삭제할 수 없습니다.`)) {
+        if (!confirm(`"${tagName}" 태그를 삭제하시겠습니까?\n\n *기본 태그는 삭제 불가`)) {
             return;
         }
         

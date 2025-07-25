@@ -161,23 +161,24 @@ def delete_tag(request, tag_id):
     """
     태그 삭제 
     - 일반 사용자: 본인의 사용자 태그만 삭제 가능
-    - 관리자(superuser): 기본 태그도 삭제 가능
+    - 관리자(superuser): 기본 태그도 삭제 가능 (단, 사용 중이지 않은 경우)
     """
     try:
-        # 관리자인 경우 모든 태그 삭제 가능
+        # 관리자인 경우 모든 태그에 접근 가능
         if request.user.is_superuser:
             tag = get_object_or_404(Tag, id=tag_id)
         else:
             # 일반 사용자는 본인의 사용자 태그만 삭제 가능
             tag = get_object_or_404(Tag, id=tag_id, user=request.user, is_default=False)
         
-        # 사용 중인 태그인지 확인
-        usage_count = TimeBlock.objects.filter(tag=tag).count()
-        if usage_count > 0:
-            return JsonResponse({
-                'success': False,
-                'message': f'이 태그는 {usage_count}개의 시간 블록에서 사용 중이어서 삭제할 수 없습니다.'
-            }, status=400)
+        # 기본 태그는 사용 중이면 삭제 불가
+        if tag.is_default:
+            usage_count = TimeBlock.objects.filter(tag=tag).count()
+            if usage_count > 0:
+                return JsonResponse({
+                    'success': False,
+                    'message': f'이 기본 태그는 {usage_count}개의 시간 블록에서 사용 중이어서 삭제할 수 없습니다.'
+                }, status=400)
         
         tag_name = tag.name
         is_default = tag.is_default
