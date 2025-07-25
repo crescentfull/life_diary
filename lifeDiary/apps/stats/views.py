@@ -9,6 +9,10 @@ import json
 from apps.dashboard.models import TimeBlock
 from apps.tags.models import Tag
 
+# 상수 정의
+UNCLASSIFIED_TAG_NAME = "미분류"
+UNCLASSIFIED_TAG_COLOR = "#808080"
+
 # Create your views here.
 
 @login_required
@@ -59,9 +63,13 @@ def daily_stats(request):
     
     for block in time_blocks:
         # 태그별 집계
-        tag_name = block.tag.name
-        tag_color = block.tag.color
-        
+        if block.tag:
+            tag_name = block.tag.name
+            tag_color = block.tag.color
+        else:
+            tag_name = UNCLASSIFIED_TAG_NAME
+            tag_color = UNCLASSIFIED_TAG_COLOR
+
         if tag_name not in tag_stats:
             tag_stats[tag_name] = {
                 'name': tag_name,
@@ -119,7 +127,13 @@ def weekly_stats(request):
         
         daily_tag_stats = {}
         for block in daily_blocks:
-            tag_name = block.tag.name
+            if block.tag:
+                tag_name = block.tag.name
+                tag_color = block.tag.color
+            else:
+                tag_name = UNCLASSIFIED_TAG_NAME
+                tag_color = UNCLASSIFIED_TAG_COLOR
+
             if tag_name not in daily_tag_stats:
                 daily_tag_stats[tag_name] = 0
             daily_tag_stats[tag_name] += 10  # 10분씩 증가
@@ -128,7 +142,7 @@ def weekly_stats(request):
             if tag_name not in tag_weekly_stats:
                 tag_weekly_stats[tag_name] = {
                     'name': tag_name,
-                    'color': block.tag.color,
+                    'color': tag_color,
                     'daily_minutes': [0] * 7
                 }
             
@@ -190,6 +204,13 @@ def monthly_stats(request):
     for block in monthly_blocks:
         date_str = block.date.strftime('%Y-%m-%d')
         
+        if block.tag:
+            tag_name = block.tag.name
+            tag_color = block.tag.color
+        else:
+            tag_name = UNCLASSIFIED_TAG_NAME
+            tag_color = UNCLASSIFIED_TAG_COLOR
+
         # 일별 통계
         if date_str not in daily_stats:
             daily_stats[date_str] = {
@@ -201,14 +222,13 @@ def monthly_stats(request):
         
         daily_stats[date_str]['blocks'] += 1
         daily_stats[date_str]['minutes'] += 10
-        daily_stats[date_str]['tags'].add(block.tag.name)
+        daily_stats[date_str]['tags'].add(tag_name)
         
         # 태그별 월간 통계
-        tag_name = block.tag.name
         if tag_name not in tag_monthly_stats:
             tag_monthly_stats[tag_name] = {
                 'name': tag_name,
-                'color': block.tag.color,
+                'color': tag_color,
                 'total_minutes': 0,
                 'days_used': set()
             }
@@ -261,13 +281,19 @@ def tag_analysis(request):
     date_range = set()
     
     for block in all_blocks:
-        tag_name = block.tag.name
+        if block.tag:
+            tag_name = block.tag.name
+            tag_color = block.tag.color
+        else:
+            tag_name = UNCLASSIFIED_TAG_NAME
+            tag_color = UNCLASSIFIED_TAG_COLOR
+
         date_range.add(block.date)
         
         if tag_name not in tag_analysis_data:
             tag_analysis_data[tag_name] = {
                 'name': tag_name,
-                'color': block.tag.color,
+                'color': tag_color,
                 'total_minutes': 0,
                 'total_blocks': 0,
                 'days_used': set(),

@@ -1,0 +1,47 @@
+<!--
+    태그 생성 및 수정을 위한 공통 모달
+    - ID: tagFormModal
+    - 이 템플릿을 include하는 곳에서는 tag_form_js.html도 함께 include 해야 합니다.
+-->
+<div class="modal fade" id="tagFormModal" tabindex="-1" style="z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tagFormModalTitle">새 태그 생성</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="tagForm">
+                    <input type="hidden" id="tagFormTagId">
+                    <div class="mb-3">
+                        <label for="tagFormName" class="form-label">태그명</label>
+                        <input type="text" class="form-control" id="tagFormName" maxlength="50" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="tagFormColor" class="form-label">색상</label>
+                        <div class="d-flex align-items-center gap-2">
+                            <input type="color" class="form-control form-control-color" id="tagFormColor" value="#007bff">
+                            <input type="text" class="form-control" id="tagFormColorText" placeholder="#007bff" maxlength="7">
+                        </div>
+                    </div>
+                    {% if user.is_superuser %}
+                    <div class="mb-3" id="tagFormDefaultOption">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="tagFormIsDefault">
+                            <label class="form-check-label" for="tagFormIsDefault">
+                                <i class="fas fa-star text-warning me-1"></i>
+                                기본 태그로 설정 (모든 사용자가 사용 가능)
+                            </label>
+                        </div>
+                        <small class="text-muted">기본 태그는 관리자가 아니면 수정/삭제할 수 없습니다.</small>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                <button type="button" class="btn btn-primary" id="saveTagFormBtn">저장</button>
+            </div>
+        </div>
+    </div>
+</div> 

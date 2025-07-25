@@ -14,323 +14,146 @@
                         <small class="badge bg-warning text-dark ms-2">관리자</small>
                     {% endif %}
                 </h5>
-                <button type="button" class="btn btn-primary btn-sm" id="createTagBtn">
+                <button type="button" class="btn btn-primary btn-sm" onclick="openTagFormModal()">
                     <i class="fas fa-plus me-1"></i>
                     새 태그 생성
                 </button>
             </div>
             <div class="card-body">
-                <div id="tagList" class="row">
+                <div id="tagListContainer" class="row">
                     <!-- 태그 목록이 여기에 동적으로 로드됩니다 -->
                 </div>
                 
-                <div id="emptyState" class="text-center py-4" style="display: none;">
+                <div id="tagEmptyState" class="text-center py-4" style="display: none;">
                     <i class="fas fa-tags text-muted mb-3" style="font-size: 3rem;"></i>
-                    <h5 class="text-muted">등록된 개인 태그가 없습니다</h5>
-                    <p class="text-muted">새 태그를 생성하여 시간 기록을 시작해보세요!</p>
+                    <h5 class="text-muted">등록된 태그가 없습니다.</h5>
+                    <p class="text-muted">새 태그를 생성하여 시간 기록을 시작해보세요.</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- 태그 생성/수정 모달 -->
-<div class="modal fade" id="tagModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="tagModalTitle">새 태그 생성</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <form id="tagForm">
-                    <div class="mb-3">
-                        <label for="tagName" class="form-label">태그명</label>
-                        <input type="text" class="form-control" id="tagName" maxlength="50" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="tagColor" class="form-label">색상</label>
-                        <input type="color" class="form-control form-control-color" id="tagColor" value="#007bff" required>
-                    </div>
-                    <div class="mb-3" id="defaultTagOption" style="display: none;">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" id="isDefault">
-                            <label class="form-check-label" for="isDefault">
-                                <i class="fas fa-star text-warning me-1"></i>
-                                기본 태그로 생성 (모든 사용자가 사용 가능)
-                            </label>
-                        </div>
-                        <small class="text-muted">기본 태그는 모든 사용자가 공통으로 사용할 수 있는 태그입니다.</small>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
-                <button type="button" class="btn btn-primary" id="saveTagBtn">저장</button>
-            </div>
-        </div>
-    </div>
-</div>
+{% include 'tags/_tag_modal.html' %}
+{% endblock %}
 
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'tags/js/tag.js' %}" defer></script>
 <script>
-// 사용자 권한 정보
-const isUserSuperuser = {{ user.is_superuser|yesno:"true,false" }};
-
 document.addEventListener('DOMContentLoaded', function() {
-    let currentTagId = null;
-    const tagModal = new bootstrap.Modal(document.getElementById('tagModal'));
     
-    // 태그 목록 로드
-    function loadTags() {
-        fetch('/tags/api/')
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    displayTags(data.tags);
-                } else {
-                    console.error('태그 로드 실패:', data.message);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-    }
-    
-    // 태그 목록 표시
-    function displayTags(tags) {
-        const tagList = document.getElementById('tagList');
-        const emptyState = document.getElementById('emptyState');
+    // 태그 목록을 로드하고 표시하는 함수
+    async function loadAndDisplayTags() {
+        const container = document.getElementById('tagListContainer');
+        const emptyState = document.getElementById('tagEmptyState');
         
-        // 관리자는 모든 태그 표시, 일반 사용자는 사용자 태그만 표시
-        const userTags = tags.filter(tag => !tag.is_default);
-        const defaultTags = tags.filter(tag => tag.is_default);
-        
-        // 표시할 태그들 결정 (사용자 태그는 항상 표시)
-        let tagsToShow = [...userTags];
-        
-        if (userTags.length === 0 && defaultTags.length === 0) {
-            tagList.innerHTML = '';
-            emptyState.style.display = 'block';
-            return;
-        }
-        
-        emptyState.style.display = 'none';
-        
-        let html = '';
-        
-        // 기본 태그 섹션 (관리자에게만 표시)
-        if (defaultTags.length > 0) {
-            html += `
-                <div class="col-12 mb-3">
-                    <h6 class="text-muted">
-                        <i class="fas fa-star me-1"></i>
-                        기본 태그 (관리자 전용)
-                    </h6>
-                </div>
-            `;
-            
-            defaultTags.forEach(tag => {
-                html += `
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100 border-warning">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="badge me-2" style="background-color: ${tag.color}; color: white; font-size: 0.9em;">
-                                        ${tag.name}
-                                    </span>
-                                    <small class="badge bg-warning text-dark">기본</small>
-                                </div>
-                                <small class="text-muted">${tag.color}</small>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <div class="d-flex gap-2">
-                                    ${tag.can_edit ? `
-                                        <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editTag(${tag.id}, '${tag.name}', '${tag.color}', ${tag.is_default})">
-                                            <i class="fas fa-edit me-1"></i>수정
-                                        </button>
-                                    ` : ''}
-                                    ${tag.can_delete ? `
-                                        <button class="btn btn-outline-danger btn-sm flex-fill" onclick="deleteTag(${tag.id}, '${tag.name}')">
-                                            <i class="fas fa-trash me-1"></i>삭제
-                                        </button>
-                                    ` : ''}
-                                </div> 
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-        }
-        
-        // 사용자 태그 섹션
-        if (userTags.length > 0) {
+        try {
+            const response = await fetch('/tags/api/');
+            const data = await response.json();
+
+            if (!data.success) {
+                container.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                return;
+            }
+
+            const tags = data.tags;
+            if (tags.length === 0) {
+                container.innerHTML = '';
+                emptyState.style.display = 'block';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            container.innerHTML = ''; // 기존 목록 초기화
+
+            // 기본 태그와 사용자 태그 분리
+            const defaultTags = tags.filter(t => t.is_default);
+            const userTags = tags.filter(t => !t.is_default);
+
+            // 기본 태그 섹션 (관리자에게만 완전하게 보임)
             if (defaultTags.length > 0) {
-                html += `
-                    <div class="col-12 mb-3 mt-4">
-                        <h6 class="text-muted">
-                            <i class="fas fa-user me-1"></i>
-                            개인 태그
-                        </h6>
-                    </div>
-                `;
+                let html = `
+                    <div class="col-12 mb-3">
+                        <h6 class="text-muted"><i class="fas fa-star me-1"></i> 기본 태그</h6>
+                    </div>`;
+                defaultTags.forEach(tag => {
+                    html += createTagCardHtml(tag);
+                });
+                container.innerHTML += html;
             }
             
-            userTags.forEach(tag => {
-                html += `
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body">
-                                <div class="d-flex align-items-center mb-2">
-                                    <span class="badge me-2" style="background-color: ${tag.color}; color: white; font-size: 0.9em;">
-                                        ${tag.name}
-                                    </span>
-                                </div>
-                                <small class="text-muted">${tag.color}</small>
-                            </div>
-                            <div class="card-footer bg-transparent">
-                                <div class="d-flex gap-2">
-                                    <button class="btn btn-outline-primary btn-sm flex-fill" onclick="editTag(${tag.id}, '${tag.name}', '${tag.color}', ${tag.is_default})">
-                                        <i class="fas fa-edit me-1"></i>수정
-                                    </button>
-                                    <button class="btn btn-outline-danger btn-sm flex-fill" onclick="deleteTag(${tag.id}, '${tag.name}')">
-                                        <i class="fas fa-trash me-1"></i>삭제
-                                    </button>
-                                </div>
-                            </div>
+            // 사용자 태그 섹션
+            if (userTags.length > 0) {
+                let html = `
+                    <div class="col-12 mb-3 ${defaultTags.length > 0 ? 'mt-4' : ''}">
+                        <h6 class="text-muted"><i class="fas fa-user me-1"></i> 개인 태그</h6>
+                    </div>`;
+                userTags.forEach(tag => {
+                    html += createTagCardHtml(tag);
+                });
+                container.innerHTML += html;
+            }
+
+        } catch (error) {
+            console.error('태그 로드 오류:', error);
+            container.innerHTML = `<div class="alert alert-danger">태그를 불러오는 중 오류가 발생했습니다.</div>`;
+        }
+    }
+
+    // 태그 카드 HTML 생성 함수
+    function createTagCardHtml(tag) {
+        const canEdit = !tag.is_default || {{ user.is_superuser|yesno:"true,false" }};
+        const canDelete = !tag.is_default || {{ user.is_superuser|yesno:"true,false" }};
+
+        return `
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100 ${tag.is_default ? 'border-warning' : ''}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center mb-2">
+                            <span class="badge me-2" style="background-color: ${tag.color}; color: white; font-size: 0.9em;">
+                                ${escapeHTML(tag.name)}
+                            </span>
+                            ${tag.is_default ? '<small class="badge bg-warning text-dark">기본</small>' : ''}
+                        </div>
+                        <small class="text-muted">${tag.color}</small>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <div class="d-flex gap-2">
+                            ${canEdit ? `
+                                <button class="btn btn-outline-primary btn-sm flex-fill" 
+                                        onclick="openTagFormModal({id: ${tag.id}, name: '${escapeHTML(tag.name)}', color: '${tag.color}', is_default: ${tag.is_default}})">
+                                    <i class="fas fa-edit me-1"></i>수정
+                                </button>` : ''}
+                            ${canDelete ? `
+                                <button class="btn btn-outline-danger btn-sm flex-fill" 
+                                        onclick="deleteTag(${tag.id}, '${escapeHTML(tag.name)}')">
+                                    <i class="fas fa-trash me-1"></i>삭제
+                                </button>` : ''}
                         </div>
                     </div>
-                `;
-            });
-        } else if (defaultTags.length === 0) {
-            // 사용자 태그도 기본 태그도 없는 경우
-            emptyState.style.display = 'block';
-            return;
-        }
-        
-        tagList.innerHTML = html;
+                </div>
+            </div>`;
     }
-    
-    // 새 태그 생성 모달 열기
-    document.getElementById('createTagBtn').addEventListener('click', function() {
-        currentTagId = null;
-        document.getElementById('tagModalTitle').textContent = '새 태그 생성';
-        document.getElementById('tagForm').reset();
-        document.getElementById('tagColor').value = '#007bff';
-        
-        // 관리자에게만 기본 태그 옵션 표시
-        const defaultTagOption = document.getElementById('defaultTagOption');
-        if (isUserSuperuser) {
-            defaultTagOption.style.display = 'block';
-            document.getElementById('isDefault').checked = false;
-        } else {
-            defaultTagOption.style.display = 'none';
-        }
-        
-        tagModal.show();
-    });
-    
-    // 태그 수정 모달 열기
-    window.editTag = function(id, name, color, isDefault) {
-        currentTagId = id;
-        document.getElementById('tagModalTitle').textContent = '태그 수정';
-        document.getElementById('tagName').value = name;
-        document.getElementById('tagColor').value = color;
-        
-        // 관리자에게만 기본 태그 옵션 표시
-        const defaultTagOption = document.getElementById('defaultTagOption');
-        if (isUserSuperuser) {
-            defaultTagOption.style.display = 'block';
-            document.getElementById('isDefault').checked = isDefault;
-        } else {
-            defaultTagOption.style.display = 'none';
-        }
-        
-        tagModal.show();
-    };
-    
-    // 태그 저장
-    document.getElementById('saveTagBtn').addEventListener('click', function() {
-        const name = document.getElementById('tagName').value.trim();
-        const color = document.getElementById('tagColor').value;
-        const isDefault = document.getElementById('isDefault').checked;
-        
-        if (!name) {
-            alert('태그명을 입력해주세요.');
-            return;
-        }
-        
-        const url = currentTagId ? `/tags/api/${currentTagId}/update/` : '/tags/api/create/';
-        const method = 'POST';
-        
-        fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: JSON.stringify({ name, color, is_default: isDefault })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                tagModal.hide();
-                loadTags();
-                alert(data.message);
-            } else {
-                alert(data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('오류가 발생했습니다.');
+
+    // HTML 특수문자 이스케이프 함수
+    function escapeHTML(str) {
+        return str.replace(/[&<>"']/g, function(match) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[match];
         });
-    });
-    
-    // 태그 삭제
-    window.deleteTag = function(id, name) {
-        if (!confirm(`"${name}" 태그를 삭제하시겠습니까?`)) {
-            return;
-        }
-        
-        fetch(`/tags/api/${id}/delete/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': getCookie('csrftoken')
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                loadTags();
-                alert(data.message);
-            } else {
-                alert(data.message);
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('오류가 발생했습니다.');
-        });
-    };
-    
-    // CSRF 토큰 가져오기
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
     }
-    
+
+    // 'tags-updated' 이벤트 수신 시 태그 목록 새로고침
+    document.addEventListener('tags-updated', loadAndDisplayTags);
+
     // 초기 로드
-    loadTags();
+    loadAndDisplayTags();
 });
 </script>
 {% endblock %} 
