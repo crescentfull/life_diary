@@ -77,8 +77,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        const url = tagId ? `/tags/api/${tagId}/update/` : '/tags/api/create/';
-        const method = 'POST';
+        const url = tagId ? `/api/tags/${tagId}/` : '/api/tags/';
+        const method = tagId ? 'PUT' : 'POST';
 
         try {
             const response = await fetch(url, {
@@ -113,8 +113,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         try {
-            const response = await fetch(`/tags/api/${tagId}/delete/`, {
-                method: 'POST',
+            const response = await fetch(`/api/tags/${tagId}/`, {
+                method: 'DELETE',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': getCookie('csrftoken')

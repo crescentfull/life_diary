@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const emptyState = document.getElementById('tagEmptyState');
         
         try {
-            const response = await fetch('/tags/api/');
+            const response = await fetch('/api/tags/');
             const data = await response.json();
 
             if (!data.success) {

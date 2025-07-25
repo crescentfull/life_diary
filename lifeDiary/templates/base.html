@@ -75,7 +75,12 @@
                             <li><a class="dropdown-item" href="{% url 'admin:index' %}">관리자</a></li>
                             <li><hr class="dropdown-divider"></li>
                             {% endif %}
-                            <li><a class="dropdown-item" href="{% url 'users:logout' %}">로그아웃</a></li>
+                            <li>
+                                <form action="{% url 'users:logout' %}" method="post" class="d-inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item">로그아웃</button>
+                                </form>
+                            </li>
                         </ul>
                     </li>
                 </ul>

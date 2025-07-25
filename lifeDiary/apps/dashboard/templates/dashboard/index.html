@@ -272,7 +272,7 @@
                 window.location.href = url.toString();
             });
         }
-
+        
         // '새 태그' 버튼 클릭 시 공통 모달 열기
         document.getElementById('createNewTagBtn').addEventListener('click', function() {
             window.openTagFormModal(); // 인자 없이 호출하여 '생성' 모드로
@@ -285,7 +285,7 @@
             window.location.href = "{% url 'tags:index' %}";
         });
     }
-
+    
     // 슬롯 선택 (단일 클릭)
     const selectSlot = (slotIndex) => {
         if (isDragging) return; // 드래그 중이면 무시
@@ -373,7 +373,7 @@
 
     // 슬롯 정보 표시 (기존 코드와 동일)
     const showSlotInfo = (slotIndexes) => {
-        const slotInfoCard = document.getElementById('slotInfoCard');
+            const slotInfoCard = document.getElementById('slotInfoCard');
         const slotInfoElement = document.getElementById('slotInfo');
         if (!slotIndexes || slotIndexes.length === 0) {
             if(slotInfoCard) slotInfoCard.style.display = 'none';
@@ -395,10 +395,10 @@
             infoHTML = `<div class="mb-2"><strong>시간:</strong> ${timeRange}</div>
                         <div class="mb-2"><strong>상태:</strong> ${tagName}</div>`;
         } else {
-             const sortedSlots = slotIndexes.sort((a, b) => a - b);
+            const sortedSlots = slotIndexes.sort((a, b) => a - b);
             const startSlot = sortedSlots[0];
             const endSlot = sortedSlots[sortedSlots.length - 1];
-
+            
             const startElem = document.querySelector(`[data-slot-index="${startSlot}"]`);
             const endElem = document.querySelector(`[data-slot-index="${endSlot}"]`);
 
@@ -438,51 +438,58 @@
         updateButtons();
     };
 
-    // 슬롯 저장/삭제 (기존 코드와 동일, CSRF 토큰 함수 필요)
+    // 슬롯 저장 (실제 데이터베이스에 저장)
     const saveSlot = async () => {
-        if (selectedSlots.size === 0 || !selectedTag) return;
+        if (selectedSlots.size === 0 || !selectedTag) {
+            alert('슬롯과 태그를 선택해주세요.');
+            return;
+        }
         const memo = document.getElementById('memoInput').value || '';
         const date = document.getElementById('dateSelector').value;
 
-        const response = await fetch('/dashboard/api/save-blocks/', {
-            method: 'POST',
+        const response = await fetch('/api/time-blocks/', {
+                method: 'POST',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
             body: JSON.stringify({ slot_indexes: Array.from(selectedSlots), tag_id: selectedTag.id, memo, date })
         });
-        const result = await response.json();
-        if (result.success) {
-            // UI 업데이트 및 상태 초기화
-            location.reload(); // 간단하게 새로고침으로 처리
-        } else {
-            alert('저장 실패: ' + result.message);
+            const result = await response.json();
+            if (result.success) {
+            location.reload();
+            } else {
+                alert('저장 실패: ' + result.message);
         }
     };
     
+    // 슬롯 삭제 (실제 데이터베이스에서 삭제)
     const deleteSlot = async () => {
-        if (!confirm('선택된 기록을 삭제하시겠습니까?')) return;
+        if (selectedSlots.size === 0) return;
         const filledSlots = Array.from(selectedSlots).filter(idx => 
             document.querySelector(`[data-slot-index="${idx}"]`)?.classList.contains('filled')
         );
-        if (filledSlots.length === 0) return;
+        if (filledSlots.length === 0) {
+            alert('삭제할 기록이 없습니다.');
+            return;
+        }
+        if (!confirm(`${filledSlots.length}개의 기록된 슬롯을 삭제하시겠습니까?`)) return;
         
         const date = document.getElementById('dateSelector').value;
-        const response = await fetch('/dashboard/api/delete-blocks/', {
-            method: 'POST',
+        const response = await fetch('/api/time-blocks/', {
+            method: 'DELETE',
             headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
             body: JSON.stringify({ slot_indexes: filledSlots, date })
         });
-        const result = await response.json();
-        if (result.success) {
-            location.reload(); // 간단하게 새로고침으로 처리
-        } else {
-            alert('삭제 실패: ' + result.message);
+                const result = await response.json();
+                if (result.success) {
+            location.reload();
+                } else {
+                    alert('삭제 실패: ' + result.message);
         }
     };
-    
+
     // 태그 로딩 및 렌더링 기능
     async function loadAvailableTags() {
         try {
-            const response = await fetch('/tags/api/');
+            const response = await fetch('/api/tags/');
             const result = await response.json();
             if (result.success) {
                 renderTagContainer(result.tags);
@@ -506,12 +513,12 @@
         
         tagContainer.innerHTML = tags.map(tag => `
             <button class="btn btn-outline-secondary btn-sm tag-btn text-start" 
-                    data-tag-id="${tag.id}"
-                    onclick="selectTag(${tag.id}, '${tag.color}', '${tag.name}')">
-                <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
-                ${tag.name}
+                        data-tag-id="${tag.id}"
+                        onclick="selectTag(${tag.id}, '${tag.color}', '${tag.name}')">
+                    <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
+                    ${tag.name}
                 ${tag.is_default ? '<i class="fas fa-star text-warning ms-1" title="기본 태그"></i>' : ''}
-            </button>
+                </button>
         `).join('');
     }
     

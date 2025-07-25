@@ -17,7 +17,6 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
-from django.views.generic import RedirectView
 from django.contrib.auth.decorators import user_passes_test
 from . import views
 
@@ -28,10 +27,14 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("", views.index, name='home'),
     
-    # 인증 관련 URL
-    path("accounts/", include('apps.users.urls')),
-    
+    # Page URLs
     path("dashboard/", include('apps.dashboard.urls')),
-    path("tags/", include('apps.tags.urls')),
     path("stats/", include('apps.stats.urls')),
+    path("tags/", include('apps.tags.urls')),
+    path("accounts/", include('apps.users.urls')),
+
+    # API URLs
+    path('api/', include('apps.dashboard.api_urls')),
+    path('api/', include('apps.stats.api_urls')),
+    path('api/', include('apps.tags.api_urls')),
 ]
