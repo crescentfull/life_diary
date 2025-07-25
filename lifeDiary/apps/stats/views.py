@@ -1,6 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, JsonResponse
 from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import datetime, date, timedelta
@@ -16,7 +16,7 @@ UNCLASSIFIED_TAG_COLOR = "#808080"
 # Create your views here.
 
 @login_required
-def index(request: HttpRequest) -> HttpResponse:
+def index(request: HttpRequest):
     """
     통계 메인 페이지
     """
@@ -44,6 +44,7 @@ def index(request: HttpRequest) -> HttpResponse:
 def daily_stats(request):
     """
     일별 통계 API
+    - 시간대별 누적 막대 그래프를 위한 데이터 구조 변경
     """
     selected_date_str = request.GET.get('date', date.today().strftime('%Y-%m-%d'))
     try:
@@ -59,7 +60,8 @@ def daily_stats(request):
     
     # 태그별 시간 집계
     tag_stats = {}
-    hourly_stats = [0] * 24  # 24시간별 통계
+    # 시간대별 통계를 태그별로 집계하도록 구조 변경: [{ "태그1": 20, "태그2": 30 }, { "태그1": 60 }]
+    hourly_stats = [{} for _ in range(24)]
     
     for block in time_blocks:
         # 태그별 집계
@@ -81,9 +83,31 @@ def daily_stats(request):
         tag_stats[tag_name]['minutes'] += 10
         tag_stats[tag_name]['blocks'] += 1
         
-        # 시간대별 집계
+        # 시간대별 집계 (태그별로 분 단위로)
         hour = block.slot_index // 6
-        hourly_stats[hour] += 1
+        hourly_stats[hour][tag_name] = hourly_stats[hour].get(tag_name, 0) + 10
+    
+    # 빈 슬롯을 미분류로 채우기
+    for hour in range(24):
+        total_minutes_in_hour = sum(hourly_stats[hour].values())
+        empty_minutes = 60 - total_minutes_in_hour
+        
+        if empty_minutes > 0:
+            # 미분류 태그 정보를 tag_stats에 추가 (아직 없다면)
+            if UNCLASSIFIED_TAG_NAME not in tag_stats:
+                tag_stats[UNCLASSIFIED_TAG_NAME] = {
+                    'name': UNCLASSIFIED_TAG_NAME,
+                    'color': UNCLASSIFIED_TAG_COLOR,
+                    'minutes': 0,
+                    'blocks': 0
+                }
+            
+            # 해당 시간의 빈 슬롯을 미분류로 추가
+            hourly_stats[hour][UNCLASSIFIED_TAG_NAME] = hourly_stats[hour].get(UNCLASSIFIED_TAG_NAME, 0) + empty_minutes
+            
+            # tag_stats에도 미분류 시간 추가
+            tag_stats[UNCLASSIFIED_TAG_NAME]['minutes'] += empty_minutes
+            tag_stats[UNCLASSIFIED_TAG_NAME]['blocks'] += empty_minutes // 10
     
     # 태그별 데이터를 분 단위에서 시간 단위로 변환
     for tag_data in tag_stats.values():
@@ -94,9 +118,9 @@ def daily_stats(request):
         'date': selected_date.strftime('%Y-%m-%d'),
         'tag_stats': list(tag_stats.values()),
         'hourly_stats': hourly_stats,
-        'total_blocks': len(time_blocks),
-        'total_hours': round(len(time_blocks) * 10 / 60, 1),
-        'fill_percentage': round((len(time_blocks) / 144) * 100, 1)
+        'total_blocks': 144,  # 전체 하루 블록 수 (미분류 포함)
+        'total_hours': 24.0,  # 전체 24시간
+        'fill_percentage': round((len(time_blocks) / 144) * 100, 1)  # 실제 기록률만 계산
     })
 
 @login_required
@@ -118,6 +142,9 @@ def weekly_stats(request):
     weekly_data = []
     tag_weekly_stats = {}
     
+    # 제외할 태그들 (미분류, 수면 관련)
+    excluded_tags = {UNCLASSIFIED_TAG_NAME, '수면'}
+    
     for date_item in week_dates:
         # 해당 날짜의 블록들
         daily_blocks = TimeBlock.objects.filter(
@@ -126,6 +153,9 @@ def weekly_stats(request):
         ).select_related('tag')
         
         daily_tag_stats = {}
+        active_blocks_count = 0  # 실제 활동 블록 수
+        active_minutes = 0  # 실제 활동 시간
+        
         for block in daily_blocks:
             if block.tag:
                 tag_name = block.tag.name
@@ -137,6 +167,11 @@ def weekly_stats(request):
             if tag_name not in daily_tag_stats:
                 daily_tag_stats[tag_name] = 0
             daily_tag_stats[tag_name] += 10  # 10분씩 증가
+            
+            # 실제 활동 시간 계산 (제외 태그가 아닌 경우만)
+            if tag_name not in excluded_tags:
+                active_blocks_count += 1
+                active_minutes += 10
             
             # 주간 태그 통계
             if tag_name not in tag_weekly_stats:
@@ -153,9 +188,9 @@ def weekly_stats(request):
             'date': date_item.strftime('%Y-%m-%d'),
             'day_name': date_item.strftime('%a'),
             'day_korean': ['월', '화', '수', '목', '금', '토', '일'][date_item.weekday()],
-            'total_blocks': len(daily_blocks),
-            'total_minutes': len(daily_blocks) * 10,
-            'fill_percentage': round((len(daily_blocks) / 144) * 100, 1),
+            'total_blocks': active_blocks_count,  # 실제 활동 블록만
+            'total_minutes': active_minutes,  # 실제 활동 시간만
+            'fill_percentage': round((len(daily_blocks) / 144) * 100, 1),  # 전체 기록률
             'tag_stats': daily_tag_stats
         })
     

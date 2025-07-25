@@ -1,7 +1,7 @@
 from django.shortcuts import render
-from django.http import HttpRequest, HttpResponse
+from django.http import HttpRequest
 
-def index(request: HttpRequest) -> HttpResponse:
+def index(request: HttpRequest):
     """
     메인 홈페이지
     """

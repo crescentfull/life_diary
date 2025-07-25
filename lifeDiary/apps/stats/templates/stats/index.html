@@ -273,7 +273,7 @@ async function loadDailyStats() {
         
         if (data.success) {
             renderDailyPieChart(data.tag_stats);
-            renderHourlyBarChart(data.hourly_stats);
+            renderHourlyBarChart(data.hourly_stats, data.tag_stats);
             renderDailySummary(data);
         }
     } catch (error) {
@@ -379,39 +379,74 @@ function renderDailyPieChart(tagStats) {
     });
 }
 
-function renderHourlyBarChart(hourlyStats) {
+function renderHourlyBarChart(hourlyStats, tagStats) {
     const ctx = document.getElementById('hourlyBarChart').getContext('2d');
     
     if (charts.hourlyBar) {
         charts.hourlyBar.destroy();
     }
     
+    if (hourlyStats.every(hour => Object.keys(hour).length === 0)) {
+        ctx.fillStyle = '#6c757d';
+        ctx.font = '16px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText('데이터가 없습니다', ctx.canvas.width / 2, ctx.canvas.height / 2);
+        return;
+    }
+
     const hours = Array.from({length: 24}, (_, i) => `${i}시`);
+    
+    const allTags = {};
+    if (tagStats) {
+        tagStats.forEach(tag => {
+            allTags[tag.name] = tag.color;
+        });
+    }
+
+    const datasets = Object.keys(allTags).map(tagName => {
+        return {
+            label: tagName,
+            data: hourlyStats.map(hourData => hourData[tagName] || 0),
+            backgroundColor: allTags[tagName],
+        };
+    });
     
     charts.hourlyBar = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: hours,
-            datasets: [{
-                label: '활동량 (10분 단위)',
-                data: hourlyStats,
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
+            datasets: datasets
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
             scales: {
+                x: {
+                    stacked: true,
+                },
                 y: {
+                    stacked: true,
                     beginAtZero: true,
-                    max: 6
+                    max: 60,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '분';
+                        }
+                    }
                 }
             },
             plugins: {
                 legend: {
-                    display: false
+                    position: 'bottom',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.dataset.label || '';
+                            const value = context.raw;
+                            return `${label}: ${value}분`;
+                        }
+                    }
                 }
             }
         }
@@ -612,20 +647,52 @@ function renderDailySummary(data) {
         return;
     }
     
-    const topTag = data.tag_stats.length > 0 ? data.tag_stats[0] : null;
-    const peakHour = data.hourly_stats.indexOf(Math.max(...data.hourly_stats));
+    const topTag = data.tag_stats.length > 0 ? [...data.tag_stats].sort((a, b) => b.minutes - a.minutes)[0] : null;
+    
+    let peakHour = -1;
+    let maxMinutes = -1;
+    data.hourly_stats.forEach((hourData, hour) => {
+        const totalMinutes = Object.values(hourData).reduce((sum, val) => sum + val, 0);
+        if (totalMinutes > maxMinutes) {
+            maxMinutes = totalMinutes;
+            peakHour = hour;
+        }
+    });
+    
+    // 태그별 시간 사용량을 시간 순으로 정렬
+    const sortedTags = [...data.tag_stats].sort((a, b) => b.hours - a.hours);
+    
+    // 태그별 시간 표시 HTML 생성
+    const tagTimesList = sortedTags.map(tag => {
+        const percentage = data.total_hours > 0 ? ((tag.hours / 24) * 100).toFixed(1) : 0;
+        return `
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <div>
+                    <span class="badge me-2" style="background-color: ${tag.color};">&nbsp;</span>
+                    <span>${tag.name}</span>
+                </div>
+                <div class="text-end">
+                    <strong>${tag.hours}시간</strong>
+                    <small class="text-muted">(${percentage}%)</small>
+                </div>
+            </div>
+        `;
+    }).join('');
     
     summary.innerHTML = `
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <strong>총 기록 시간:</strong> ${data.total_hours}시간<br>
                 <strong>기록률:</strong> ${data.fill_percentage}%<br>
-                <strong>사용된 태그:</strong> ${data.tag_stats.length}개
-            </div>
-            <div class="col-md-6">
+                <strong>사용된 태그:</strong> ${data.tag_stats.length}개<br>
                 ${topTag ? `<strong>최다 사용 태그:</strong> ${topTag.name} (${topTag.hours}시간)<br>` : ''}
-                <strong>가장 활발한 시간:</strong> ${peakHour}시~${peakHour + 1}시<br>
-                <strong>평균 블록당 시간:</strong> 10분
+                ${peakHour !== -1 ? `<strong>가장 활발한 시간:</strong> ${peakHour}시~${peakHour + 1}시 (${maxMinutes}분)` : ''}
+            </div>
+            <div class="col-md-8">
+                <h6 class="mb-2">태그별 시간 사용량</h6>
+                <div style="max-height: 200px; overflow-y: auto;">
+                    ${tagTimesList}
+                </div>
             </div>
         </div>
     `;
