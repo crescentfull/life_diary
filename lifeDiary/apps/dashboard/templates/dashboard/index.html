@@ -189,7 +189,13 @@
                                     • <strong>드래그 선택:</strong> 마우스로 드래그<br>
                                     • <strong>다중 선택:</strong> Ctrl/Cmd + 클릭<br>
                                     • <strong>터치:</strong> 터치 후 드래그<br><br>
-                                    <small class="text-muted">💡 이 도움말은 ? 버튼을 다시 클릭하면 닫힙니다.</small>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <small class="text-muted">💡 이 도움말은 ? 버튼을 다시 클릭하면 닫힙니다.</small>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#tagImageModal">
+                                            <i class="fas fa-image me-1"></i>태그 설명
+                                        </button>
+                                    </div>
+                                    
                                 </small>
                             </div>
                         </div>
@@ -255,6 +261,9 @@
 
 <!-- 태그 관리 모달, 편집 모달, 생성 모달 등은 이제 공통 템플릿으로 처리됩니다 -->
 {% include 'tags/_tag_modal.html' %}
+
+<!-- 태그 설명 이미지 모달 -->
+{% include 'dashboard/_tag_image_modal.html' %}
 
 {% endblock %}
 
