@@ -1,9 +1,6 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
-from django.utils import timezone
-from datetime import datetime, date, timedelta
-import json
+from datetime import timedelta
 
 from apps.dashboard.models import TimeBlock
 from apps.tags.models import Tag
@@ -20,6 +17,7 @@ from apps.core.utils import (
     SLOTS_PER_HOUR,
     MINUTES_PER_SLOT
 )
+from apps.users.models import UserGoal, UserNote
 
 # Create your views here.
 
@@ -230,6 +228,92 @@ def index(request):
             'daily_totals': monthly_stats['daily_totals']
         }),
     }
+    # 사용자별 목표(기간: 월간, 주간)
+    user_goals_daily = UserGoal.objects.filter(user=request.user, period='daily').select_related('tag')
+    user_goals_weekly = UserGoal.objects.filter(user=request.user, period='weekly').select_related('tag')
+    user_goals_monthly = UserGoal.objects.filter(user=request.user, period='monthly').select_related('tag')
+    context['user_goals_daily'] = user_goals_daily
+    context['user_goals_weekly'] = user_goals_weekly
+    context['user_goals_monthly'] = user_goals_monthly
+
+    # 목표별 달성률 계산 (일간/주간/월간)
+    today = selected_date
+    # 일간
+    for goal in user_goals_daily:
+        actual = 0
+        for tag_stat in daily_stats['tag_stats']:
+            if tag_stat['name'] == goal.tag.name:
+                actual = tag_stat['hours']
+        percent = int((actual / goal.target_hours) * 100) if goal.target_hours > 0 else None
+        goal.percent = percent
+        goal.actual = actual
+    # 주간
+    for goal in user_goals_weekly:
+        actual = 0
+        for tag_stat in weekly_stats['tag_weekly_stats']:
+            if tag_stat['name'] == goal.tag.name:
+                actual = tag_stat['total_hours']
+        percent = int((actual / (goal.target_hours * 7)) * 100) if goal.target_hours > 0 else None
+        goal.percent = percent
+        goal.actual = actual
+    # 월간
+    for goal in user_goals_monthly:
+        actual = 0
+        for tag_stat in monthly_stats['tag_stats']:
+            if tag_stat['name'] == goal.tag.name:
+                actual = tag_stat['total_hours']
+        month_days = monthly_stats['total_days']
+        percent = int((actual / (goal.target_hours * month_days)) * 100) if goal.target_hours > 0 else None
+        goal.percent = percent
+        goal.actual = actual
+
+    # 월간 목표 달성률 (목표 태그별 실제값만 합산)
+    month_goal = None
+    month_actual = None
+    month_percent = None
+    month_goal_avg = None
+    if user_goals_monthly:
+        month_goal_avg = sum(goal.target_hours for goal in user_goals_monthly)
+        month_days = monthly_stats['total_days']
+        month_goal = month_goal_avg * month_days
+        # 목표 태그명 set
+        goal_tags = set(goal.tag.name for goal in user_goals_monthly)
+        # 실제값: 목표 태그별 실제값만 합산
+        month_actual = 0
+        for tag_stat in monthly_stats['tag_stats']:
+            if tag_stat['name'] in goal_tags:
+                month_actual += tag_stat['total_hours']
+        if month_goal > 0:
+            month_percent = int((month_actual / month_goal) * 100)
+    context['user_goals'] = user_goals_monthly
+    context['monthly_goal_percent'] = month_percent
+    context['monthly_goal_total'] = month_goal
+    context['monthly_goal_avg'] = month_goal_avg if user_goals_monthly else None
+    context['monthly_goal_actual'] = month_actual
+
+    # 주간 목표 달성률 (목표 태그별 실제값만 합산)
+    week_goal = None
+    week_actual = None
+    week_percent = None
+    week_goal_avg = None
+    if user_goals_weekly:
+        week_goal_avg = sum(goal.target_hours for goal in user_goals_weekly)
+        week_days = 7
+        week_goal = week_goal_avg * week_days
+        goal_tags = set(goal.tag.name for goal in user_goals_weekly)
+        week_actual = 0
+        for tag_stat in weekly_stats['tag_weekly_stats']:
+            if tag_stat['name'] in goal_tags:
+                week_actual += tag_stat['total_hours']
+        if week_goal > 0:
+            week_percent = int((week_actual / week_goal) * 100)
+    context['weekly_goal_percent'] = week_percent
+    context['weekly_goal_total'] = week_goal
+    context['weekly_goal_avg'] = week_goal_avg if user_goals_weekly else None
+    context['weekly_goal_actual'] = week_actual
+    # 사용자 최신 특이사항 1건
+    user_note = UserNote.objects.filter(user=request.user).order_by('-created_at').first()
+    context['user_note'] = user_note
     return render(request, 'stats/index.html', context)
 
 def get_daily_stats_data(user, selected_date, calculator):
@@ -432,6 +516,8 @@ def get_monthly_stats_data(user, selected_date, calculator):
     
     # 태그별 통계를 사용량 순으로 정렬
     tag_list = sorted(daily_tag_stats.values(), key=lambda x: x['total_hours'], reverse=True)
+    # 미분류 태그 제외
+    tag_list = [tag for tag in tag_list if tag['name'] != UNCLASSIFIED_TAG_NAME]
     
     return {
         'month': selected_date.strftime('%Y-%m'),
@@ -483,6 +569,8 @@ def get_tag_analysis_data(user, selected_date, calculator):
             'total_hours': round(data['total_minutes'] / 60, 1),
             'total_blocks': data['total_blocks'],
         })
+    # 미분류 태그 제외
+    analysis_list = [tag for tag in analysis_list if tag['name'] != UNCLASSIFIED_TAG_NAME]
     
     # 사용량 순으로 정렬
     return sorted(analysis_list, key=lambda x: x['total_hours'], reverse=True)

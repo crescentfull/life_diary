@@ -1,8 +1,7 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods, require_GET
-from django.http import JsonResponse
-from datetime import datetime, date
+
 import json
 from django.db.models import Q
 

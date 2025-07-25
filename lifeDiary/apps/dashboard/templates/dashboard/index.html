@@ -30,6 +30,11 @@
                     <button class="btn btn-sm btn-outline-primary" onclick="goToToday()">
                         <i class="fas fa-home"></i> 오늘
                     </button>
+                    {% if user.is_authenticated and not user.is_superuser %}
+                    <a href="{% url 'users:mypage' %}" class="btn btn-sm btn-outline-secondary text-danger fw-bold">
+                        <i class="fas fa-bullseye"></i> 목표 추가
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-body">
@@ -257,6 +262,15 @@
 {% load static %}
 <script src="{% static 'core/js/tag.js' %}" defer></script>
 <script>
+    // 유틸리티 함수들
+    function slotIndexToTime(slotIndex) {
+        const totalMinutes = slotIndex * 10;
+        const hour = Math.floor(totalMinutes / 60);
+        const minute = totalMinutes % 60;
+        return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+    }
+
+    // 변수 선언
     let selectedSlots = new Set(); // 선택된 슬롯들을 저장하는 Set
     let selectedTag = null;
     let isDragging = false;
@@ -386,9 +400,9 @@
     document.addEventListener('mouseup', endDrag);
     document.addEventListener('mouseleave', endDrag);
 
-    // 슬롯 정보 표시 (기존 코드와 동일)
+    // 슬롯 정보 표시 (메모 포함)
     const showSlotInfo = (slotIndexes) => {
-            const slotInfoCard = document.getElementById('slotInfoCard');
+        const slotInfoCard = document.getElementById('slotInfoCard');
         const slotInfoElement = document.getElementById('slotInfo');
         if (!slotIndexes || slotIndexes.length === 0) {
             if(slotInfoCard) slotInfoCard.style.display = 'none';
@@ -403,28 +417,42 @@
             
             const timeRange = slotElement.getAttribute('title').split(' - ')[0];
             let tagName = '빈 슬롯';
+            let memo = '';
+            
             if (slotElement.classList.contains('filled')) {
                 const titleParts = slotElement.title.split(' - ');
-                tagName = titleParts.length > 1 ? titleParts[1].split(':')[0] : '알 수 없음';
+                if (titleParts.length > 1) {
+                    const tagAndMemo = titleParts[1];
+                    const colonIndex = tagAndMemo.indexOf(':');
+                    if (colonIndex !== -1) {
+                        tagName = tagAndMemo.substring(0, colonIndex);
+                        memo = tagAndMemo.substring(colonIndex + 1).trim();
+                    } else {
+                        tagName = tagAndMemo;
+                    }
+                } else {
+                    tagName = '알 수 없음';
+                }
             }
+            
             infoHTML = `<div class="mb-2"><strong>시간:</strong> ${timeRange}</div>
                         <div class="mb-2"><strong>상태:</strong> ${tagName}</div>`;
+            
+            // 메모가 있으면 표시
+            if (memo) {
+                infoHTML += `<div class="mb-2"><strong>메모:</strong> <span class="text-muted">${memo}</span></div>`;
+            }
         } else {
-            const sortedSlots = slotIndexes.sort((a, b) => a - b);
+            const sortedSlots = slotIndexes.slice().sort((a, b) => a - b);
             const startSlot = sortedSlots[0];
             const endSlot = sortedSlots[sortedSlots.length - 1];
             
-            const startElem = document.querySelector(`[data-slot-index="${startSlot}"]`);
-            const endElem = document.querySelector(`[data-slot-index="${endSlot}"]`);
-
-            if(startElem && endElem){
-                const startTime = startElem.dataset.time.split('-')[0];
-                const endTime = endElem.dataset.time.split('-')[1];
-                const duration = slotIndexes.length * 10;
-                infoHTML = `<div class="mb-2"><strong>선택:</strong> ${slotIndexes.length}개 슬롯</div>
-                            <div class="mb-2"><strong>시간:</strong> ${startTime} - ${endTime}</div>
-                            <div class="mb-2"><strong>총:</strong> ${Math.floor(duration/60)}시간 ${duration%60}분</div>`;
-            }
+            const startTime = slotIndexToTime(startSlot);
+            const endTime = slotIndexToTime(endSlot + 1); // 끝 시간은 마지막 슬롯의 "끝"이므로 +1
+            const duration = slotIndexes.length * 10;
+            infoHTML = `<div class="mb-2"><strong>선택:</strong> ${slotIndexes.length}개 슬롯</div>
+                        <div class="mb-2"><strong>시간:</strong> ${startTime} - ${endTime}</div>
+                        <div class="mb-2"><strong>총:</strong> ${Math.floor(duration/60)}시간 ${duration%60}분</div>`;
         }
 
         if(slotInfoElement) slotInfoElement.innerHTML = infoHTML;

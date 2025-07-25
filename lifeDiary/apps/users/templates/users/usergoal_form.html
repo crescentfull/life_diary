@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container mt-4">
+    <h2>{% if mode == 'create' %}목표 추가{% else %}목표 수정{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-success">저장</button>
+        <a href="{% url 'users:mypage' %}" class="btn btn-secondary">목록으로</a>
+    </form>
+</div>
+{% endblock %} 
