@@ -63,9 +63,6 @@ body {
     .time-grid {
         grid-template-columns: repeat(6, 1fr);
     }
-    .time-slot {
-        min-height: 40px;
-    }
     .slot-time {
         font-size: 0.6rem;
     }
