@@ -35,6 +35,5 @@ urlpatterns = [
 
     # API URLs
     path('api/', include('apps.dashboard.api_urls')),
-    path('api/', include('apps.stats.api_urls')),
     path('api/', include('apps.tags.api_urls')),
 ]
