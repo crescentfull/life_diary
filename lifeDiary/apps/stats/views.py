@@ -23,6 +23,147 @@ from apps.core.utils import (
 
 # Create your views here.
 
+class StatsCalculator:
+    """통계 계산을 위한 공통 클래스"""
+    
+    def __init__(self, user, selected_date):
+        self.user = user
+        self.selected_date = selected_date
+        self.start_of_month, self.end_of_month = get_month_date_range(selected_date)
+        self.start_of_week, self.end_of_week = get_week_date_range(selected_date)
+    
+    def get_tag_info(self, block):
+        """블록에서 태그 정보 추출"""
+        if block.tag and block.tag.name:
+            return {
+                'name': block.tag.name,
+                'color': block.tag.color or '#808080'
+            }
+        return None
+    
+    def process_blocks_without_tag(self, blocks, process_func):
+        """태그가 없는 블록을 제외하고 처리"""
+        for block in blocks:
+            tag_info = self.get_tag_info(block)
+            if tag_info:
+                process_func(block, tag_info)
+    
+    def calculate_empty_slots(self, recorded_blocks_count):
+        """빈 슬롯 계산"""
+        empty_blocks = TOTAL_SLOTS_PER_DAY - recorded_blocks_count
+        return empty_blocks * MINUTES_PER_SLOT
+    
+    def add_unclassified_data(self, data_container, empty_minutes, day_index=None, data_type='daily'):
+        """미분류 데이터 추가"""
+        if empty_minutes <= 0:
+            return
+            
+        if data_type == 'daily':
+            # 일별 통계용
+            if UNCLASSIFIED_TAG_NAME not in data_container:
+                data_container[UNCLASSIFIED_TAG_NAME] = {
+                    'name': UNCLASSIFIED_TAG_NAME,
+                    'color': UNCLASSIFIED_TAG_COLOR,
+                    'minutes': 0,
+                    'blocks': 0
+                }
+            data_container[UNCLASSIFIED_TAG_NAME]['minutes'] += empty_minutes
+            data_container[UNCLASSIFIED_TAG_NAME]['blocks'] += empty_minutes // MINUTES_PER_SLOT
+            
+        elif data_type == 'weekly':
+            # 주간 통계용
+            if UNCLASSIFIED_TAG_NAME not in data_container:
+                data_container[UNCLASSIFIED_TAG_NAME] = {
+                    'name': UNCLASSIFIED_TAG_NAME,
+                    'color': UNCLASSIFIED_TAG_COLOR,
+                    'daily_minutes': [0] * 7
+                }
+            data_container[UNCLASSIFIED_TAG_NAME]['daily_minutes'][day_index] += empty_minutes
+            
+        elif data_type == 'monthly':
+            # 월간 통계용 (별도 처리됨)
+            pass
+                
+        elif data_type == 'analysis':
+            # 태그 분석용
+            if UNCLASSIFIED_TAG_NAME not in data_container:
+                data_container[UNCLASSIFIED_TAG_NAME] = {
+                    'name': UNCLASSIFIED_TAG_NAME,
+                    'color': UNCLASSIFIED_TAG_COLOR,
+                    'total_minutes': 0,
+                    'total_blocks': 0,
+                }
+            data_container[UNCLASSIFIED_TAG_NAME]['total_minutes'] += empty_minutes
+            data_container[UNCLASSIFIED_TAG_NAME]['total_blocks'] += empty_minutes // MINUTES_PER_SLOT
+    
+    def add_unclassified_to_hourly_stats(self, hourly_stats, hour, empty_minutes):
+        """시간별 통계에 미분류 데이터 추가"""
+        if empty_minutes > 0:
+            hourly_stats[hour][UNCLASSIFIED_TAG_NAME] = hourly_stats[hour].get(UNCLASSIFIED_TAG_NAME, 0) + empty_minutes
+    
+    def fill_empty_slots_daily(self, time_blocks, tag_stats, hourly_stats):
+        """일별 통계에서 빈 슬롯을 미분류로 채우기"""
+        for hour in range(24):
+            total_minutes_in_hour = sum(hourly_stats[hour].values())
+            empty_minutes = 60 - total_minutes_in_hour
+            
+            if empty_minutes > 0:
+                self.add_unclassified_data(tag_stats, empty_minutes, data_type='daily')
+                self.add_unclassified_to_hourly_stats(hourly_stats, hour, empty_minutes)
+    
+    def fill_empty_slots_weekly(self, daily_blocks, daily_tag_stats, tag_weekly_stats, date_item):
+        """주간 통계에서 빈 슬롯을 미분류로 채우기"""
+        recorded_blocks = len(daily_blocks)
+        empty_blocks = TOTAL_SLOTS_PER_DAY - recorded_blocks
+        empty_minutes = empty_blocks * MINUTES_PER_SLOT
+        
+        if empty_minutes > 0:
+            self.add_unclassified_data(daily_tag_stats, empty_minutes, data_type='daily')
+            day_index = (date_item - self.start_of_week).days
+            self.add_unclassified_data(tag_weekly_stats, empty_minutes, day_index, data_type='weekly')
+    
+    def fill_empty_slots_monthly(self, user, daily_tag_stats, daily_totals, total_days):
+        """월간 통계에서 빈 슬롯을 미분류로 채우기"""
+        for day_index in range(total_days):
+            current_date = self.start_of_month + timedelta(days=day_index)
+            recorded_blocks = TimeBlock.objects.filter(
+                user=user,
+                date=current_date
+            ).count()
+            
+            empty_blocks = TOTAL_SLOTS_PER_DAY - recorded_blocks
+            if empty_blocks > 0:
+                empty_hours = empty_blocks * MINUTES_PER_SLOT / 60
+                
+                # 미분류 태그 초기화
+                if UNCLASSIFIED_TAG_NAME not in daily_tag_stats:
+                    daily_tag_stats[UNCLASSIFIED_TAG_NAME] = {
+                        'name': UNCLASSIFIED_TAG_NAME,
+                        'color': UNCLASSIFIED_TAG_COLOR,
+                        'daily_hours': [0] * total_days,
+                        'total_hours': 0
+                    }
+                
+                daily_tag_stats[UNCLASSIFIED_TAG_NAME]['daily_hours'][day_index] += empty_hours
+                daily_tag_stats[UNCLASSIFIED_TAG_NAME]['total_hours'] += empty_hours
+                daily_totals[day_index] += empty_hours
+    
+    def fill_empty_slots_analysis(self, user, tag_analysis_data):
+        """태그 분석에서 빈 슬롯을 미분류로 채우기"""
+        total_days = (self.end_of_month - self.start_of_month).days + 1
+        
+        for day_index in range(total_days):
+            current_date = self.start_of_month + timedelta(days=day_index)
+            recorded_blocks = TimeBlock.objects.filter(
+                user=user,
+                date=current_date
+            ).count()
+            
+            empty_blocks = TOTAL_SLOTS_PER_DAY - recorded_blocks
+            if empty_blocks > 0:
+                empty_minutes = empty_blocks * MINUTES_PER_SLOT
+                self.add_unclassified_data(tag_analysis_data, empty_minutes, data_type='analysis')
+
 @login_required
 def index(request):
     """
@@ -31,27 +172,29 @@ def index(request):
     # 기본 날짜 설정 (core 유틸리티 사용)
     selected_date = safe_date_parse(request.GET.get('date'))
     
+    # 통계 계산기 초기화
+    calculator = StatsCalculator(request.user, selected_date)
+    
     # 선택된 날짜가 속한 월의 통계 데이터만 계산
-    start_of_month, end_of_month = get_month_date_range(selected_date)
     monthly_blocks = TimeBlock.objects.filter(
         user=request.user,
-        date__range=[start_of_month, end_of_month]
+        date__range=[calculator.start_of_month, calculator.end_of_month]
     )
     
     total_blocks = monthly_blocks.count()
     total_days = monthly_blocks.values('date').distinct().count()
     
     # 일별 통계 데이터 생성
-    daily_stats = get_daily_stats_data(request.user, selected_date)
+    daily_stats = get_daily_stats_data(request.user, selected_date, calculator)
     
     # 주간 통계 데이터 생성
-    weekly_stats = get_weekly_stats_data(request.user, selected_date)
+    weekly_stats = get_weekly_stats_data(request.user, selected_date, calculator)
     
     # 월간 통계 데이터 생성
-    monthly_stats = get_monthly_stats_data(request.user, selected_date)
+    monthly_stats = get_monthly_stats_data(request.user, selected_date, calculator)
     
     # 태그 분석 데이터 생성 (선택된 월의 데이터만)
-    tag_analysis = get_tag_analysis_data(request.user, selected_date)
+    tag_analysis = get_tag_analysis_data(request.user, selected_date, calculator)
     
     # JavaScript용 데이터 준비 (날짜 객체를 문자열로 변환)
     daily_stats_for_js = {
@@ -89,7 +232,7 @@ def index(request):
     }
     return render(request, 'stats/index.html', context)
 
-def get_daily_stats_data(user, selected_date):
+def get_daily_stats_data(user, selected_date, calculator):
     """일별 통계 데이터 생성"""
     time_blocks = TimeBlock.objects.filter(
         user=user,
@@ -101,15 +244,12 @@ def get_daily_stats_data(user, selected_date):
     hourly_stats = [{} for _ in range(24)]
     active_blocks_count = 0  # 미분류 제외한 실제 활동 블록 수
     
-    for block in time_blocks:
-        # 태그 정보 처리 (None 체크 강화)
-        if block.tag and block.tag.name:
-            tag_name = block.tag.name
-            tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
-        else:
-            tag_name = UNCLASSIFIED_TAG_NAME
-            tag_color = UNCLASSIFIED_TAG_COLOR
-
+    def process_block(block, tag_info):
+        nonlocal active_blocks_count
+        
+        tag_name = tag_info['name']
+        tag_color = tag_info['color']
+        
         if tag_name not in tag_stats:
             tag_stats[tag_name] = {
                 'name': tag_name,
@@ -128,23 +268,10 @@ def get_daily_stats_data(user, selected_date):
         hour = block.slot_index // SLOTS_PER_HOUR
         hourly_stats[hour][tag_name] = hourly_stats[hour].get(tag_name, 0) + MINUTES_PER_SLOT
     
+    calculator.process_blocks_without_tag(time_blocks, process_block)
+    
     # 빈 슬롯을 미분류로 채우기
-    for hour in range(24):
-        total_minutes_in_hour = sum(hourly_stats[hour].values())
-        empty_minutes = 60 - total_minutes_in_hour
-        
-        if empty_minutes > 0:
-            if UNCLASSIFIED_TAG_NAME not in tag_stats:
-                tag_stats[UNCLASSIFIED_TAG_NAME] = {
-                    'name': UNCLASSIFIED_TAG_NAME,
-                    'color': UNCLASSIFIED_TAG_COLOR,
-                    'minutes': 0,
-                    'blocks': 0
-                }
-            
-            hourly_stats[hour][UNCLASSIFIED_TAG_NAME] = hourly_stats[hour].get(UNCLASSIFIED_TAG_NAME, 0) + empty_minutes
-            tag_stats[UNCLASSIFIED_TAG_NAME]['minutes'] += empty_minutes
-            tag_stats[UNCLASSIFIED_TAG_NAME]['blocks'] += empty_minutes // MINUTES_PER_SLOT
+    calculator.fill_empty_slots_daily(time_blocks, tag_stats, hourly_stats)
     
     # 시간 단위로 변환
     for tag_data in tag_stats.values():
@@ -172,14 +299,13 @@ def get_daily_stats_data(user, selected_date):
         'top_tag': sorted(tag_stats.values(), key=lambda x: x['minutes'], reverse=True)[0] if tag_stats else None
     }
 
-def get_weekly_stats_data(user, selected_date):
+def get_weekly_stats_data(user, selected_date, calculator):
     """주간 통계 데이터 생성"""
-    start_of_week, end_of_week = get_week_date_range(selected_date)
-    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
+    week_dates = [calculator.start_of_week + timedelta(days=i) for i in range(7)]
     
     weekly_data = []
     tag_weekly_stats = {}
-    excluded_tags = {UNCLASSIFIED_TAG_NAME, SLEEP_TAG_NAME}
+    excluded_tags = {SLEEP_TAG_NAME}  # 미분류는 제외하지 않음
     
     for date_item in week_dates:
         daily_blocks = TimeBlock.objects.filter(
@@ -191,15 +317,12 @@ def get_weekly_stats_data(user, selected_date):
         active_blocks_count = 0
         active_minutes = 0
         
-        for block in daily_blocks:
-            # 태그 정보 처리 (None 체크 강화)
-            if block.tag and block.tag.name:
-                tag_name = block.tag.name
-                tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
-            else:
-                tag_name = UNCLASSIFIED_TAG_NAME
-                tag_color = UNCLASSIFIED_TAG_COLOR
-
+        def process_block(block, tag_info):
+            nonlocal active_blocks_count, active_minutes
+            
+            tag_name = tag_info['name']
+            tag_color = tag_info['color']
+            
             if tag_name not in daily_tag_stats:
                 daily_tag_stats[tag_name] = 0
             daily_tag_stats[tag_name] += MINUTES_PER_SLOT
@@ -215,8 +338,13 @@ def get_weekly_stats_data(user, selected_date):
                     'daily_minutes': [0] * 7
                 }
             
-            day_index = (date_item - start_of_week).days
+            day_index = (date_item - calculator.start_of_week).days
             tag_weekly_stats[tag_name]['daily_minutes'][day_index] += 10
+        
+        calculator.process_blocks_without_tag(daily_blocks, process_block)
+        
+        # 빈 슬롯을 미분류로 채우기
+        calculator.fill_empty_slots_weekly(daily_blocks, daily_tag_stats, tag_weekly_stats, date_item)
         
         weekly_data.append({
             'date': date_item,
@@ -236,41 +364,38 @@ def get_weekly_stats_data(user, selected_date):
         active_days = sum(1 for minutes in tag_data['daily_minutes'] if minutes > 0)
         tag_data['avg_hours'] = round(tag_data['total_hours'] / active_days, 1) if active_days > 0 else 0
     
+    # 활동한 요일 수 계산
+    active_days = sum(1 for day in weekly_data if day['total_blocks'] > 0)
+    
     return {
-        'start_date': start_of_week,
+        'start_date': calculator.start_of_week,
         'end_date': week_dates[-1],
         'weekly_data': weekly_data,
         'tag_weekly_stats': list(tag_weekly_stats.values()),
-        'week_total_hours': round(sum(day['total_minutes'] for day in weekly_data) / 60, 1)
+        'week_total_hours': round(sum(day['total_minutes'] for day in weekly_data) / 60, 1),
+        'active_days': active_days
     }
 
-def get_monthly_stats_data(user, selected_date):
+def get_monthly_stats_data(user, selected_date, calculator):
     """월간 통계 데이터 생성 - 선 그래프용"""
-    start_of_month, end_of_month = get_month_date_range(selected_date)
-    
     monthly_blocks = TimeBlock.objects.filter(
         user=user,
-        date__range=[start_of_month, end_of_month]
+        date__range=[calculator.start_of_month, calculator.end_of_month]
     ).select_related('tag')
     
     # 월의 총 일수
-    total_days = (end_of_month - start_of_month).days + 1
+    total_days = (calculator.end_of_month - calculator.start_of_month).days + 1
     
     # 일별 태그 사용량 집계
     daily_tag_stats = {}  # {tag_name: [day1_hours, day2_hours, ...]}
     daily_totals = [0] * total_days  # 일별 총 사용 시간
     
-    for block in monthly_blocks:
-        # 태그 정보 처리 (None 체크 강화)
-        if block.tag and block.tag.name:
-            tag_name = block.tag.name
-            tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
-        else:
-            tag_name = UNCLASSIFIED_TAG_NAME
-            tag_color = UNCLASSIFIED_TAG_COLOR
+    def process_block(block, tag_info):
+        tag_name = tag_info['name']
+        tag_color = tag_info['color']
         
         # 해당 일의 인덱스 (0부터 시작)
-        day_index = (block.date - start_of_month).days
+        day_index = (block.date - calculator.start_of_month).days
         
         # 태그별 일별 사용량 초기화
         if tag_name not in daily_tag_stats:
@@ -286,6 +411,11 @@ def get_monthly_stats_data(user, selected_date):
         daily_tag_stats[tag_name]['daily_hours'][day_index] += hours_increment
         daily_tag_stats[tag_name]['total_hours'] += hours_increment
         daily_totals[day_index] += hours_increment
+    
+    calculator.process_blocks_without_tag(monthly_blocks, process_block)
+    
+    # 빈 슬롯을 미분류로 채우기
+    calculator.fill_empty_slots_monthly(user, daily_tag_stats, daily_totals, total_days)
     
     # 시간 반올림
     for tag_data in daily_tag_stats.values():
@@ -305,8 +435,8 @@ def get_monthly_stats_data(user, selected_date):
     
     return {
         'month': selected_date.strftime('%Y-%m'),
-        'start_date': start_of_month,
-        'end_date': end_of_month,
+        'start_date': calculator.start_of_month,
+        'end_date': calculator.end_of_month,
         'day_labels': day_labels,
         'tag_stats': tag_list,
         'daily_totals': daily_totals,
@@ -316,23 +446,18 @@ def get_monthly_stats_data(user, selected_date):
         'avg_daily_hours': round(sum(daily_totals) / total_days, 1)
     }
 
-def get_tag_analysis_data(user, selected_date):
+def get_tag_analysis_data(user, selected_date, calculator):
     """태그 분석 데이터 생성 (선택된 월의 데이터만)"""
-    start_of_month, end_of_month = get_month_date_range(selected_date)
     monthly_blocks = TimeBlock.objects.filter(
         user=user,
-        date__range=[start_of_month, end_of_month]
+        date__range=[calculator.start_of_month, calculator.end_of_month]
     ).select_related('tag')
     
     tag_analysis_data = {}
-    for block in monthly_blocks:
-        # 태그 정보 처리 (None 체크 강화)
-        if block.tag and block.tag.name:
-            tag_name = block.tag.name
-            tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
-        else:
-            tag_name = UNCLASSIFIED_TAG_NAME
-            tag_color = UNCLASSIFIED_TAG_COLOR
+    
+    def process_block(block, tag_info):
+        tag_name = tag_info['name']
+        tag_color = tag_info['color']
         
         if tag_name not in tag_analysis_data:
             tag_analysis_data[tag_name] = {
@@ -344,6 +469,11 @@ def get_tag_analysis_data(user, selected_date):
         
         tag_analysis_data[tag_name]['total_minutes'] += MINUTES_PER_SLOT
         tag_analysis_data[tag_name]['total_blocks'] += 1
+    
+    calculator.process_blocks_without_tag(monthly_blocks, process_block)
+    
+    # 빈 슬롯을 미분류로 채우기
+    calculator.fill_empty_slots_analysis(user, tag_analysis_data)
     
     analysis_list = []
     for tag_name, data in tag_analysis_data.items():

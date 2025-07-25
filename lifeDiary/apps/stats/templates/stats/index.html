@@ -188,7 +188,7 @@
                                             <div class="col-md-6">
                                                 <strong>주간 총 시간:</strong> {{ weekly_stats.week_total_hours }}시간<br>
                                                 <strong>일평균 시간:</strong> {% widthratio weekly_stats.week_total_hours 7 1 %}시간<br>
-                                                <strong>활동 요일:</strong> {% for day in weekly_stats.weekly_data %}{% if day.total_blocks > 0 %}1{% endif %}{% endfor %}/7일
+                                                <strong>활동 요일:</strong> {{ weekly_stats.active_days }}/7일
                                             </div>
                                             <div class="col-md-6">
                                                 <strong>가장 활발한 요일:</strong> {{ most_active_day.day_korean }}요일 ({{ most_active_day.total_hours }}시간)<br>
