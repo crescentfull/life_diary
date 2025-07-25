@@ -118,9 +118,9 @@ def _handle_time_block_create_update(request, data, slot_indexes, selected_date)
         if not tag_id:
             return error_response('태그가 선택되지 않았습니다.', 'MISSING_TAG')
 
-        # 태그 존재 확인
+        # 태그 존재 확인 (사용자 태그 + 기본 태그)
         try:
-            tag = Tag.objects.get(id=tag_id, user=request.user)
+            tag = Tag.objects.get(Q(id=tag_id, user=request.user) | Q(id=tag_id, is_default=True))
         except Tag.DoesNotExist:
             return error_response('존재하지 않는 태그이거나 접근 권한이 없습니다.', 'TAG_NOT_FOUND', 404)
 

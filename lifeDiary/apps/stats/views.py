@@ -31,9 +31,15 @@ def index(request):
     # 기본 날짜 설정 (core 유틸리티 사용)
     selected_date = safe_date_parse(request.GET.get('date'))
     
-    # 기본 통계 데이터
-    total_blocks = TimeBlock.objects.filter(user=request.user).count()
-    total_days = TimeBlock.objects.filter(user=request.user).values('date').distinct().count()
+    # 선택된 날짜가 속한 월의 통계 데이터만 계산
+    start_of_month, end_of_month = get_month_date_range(selected_date)
+    monthly_blocks = TimeBlock.objects.filter(
+        user=request.user,
+        date__range=[start_of_month, end_of_month]
+    )
+    
+    total_blocks = monthly_blocks.count()
+    total_days = monthly_blocks.values('date').distinct().count()
     
     # 일별 통계 데이터 생성
     daily_stats = get_daily_stats_data(request.user, selected_date)
@@ -44,8 +50,8 @@ def index(request):
     # 월간 통계 데이터 생성
     monthly_stats = get_monthly_stats_data(request.user, selected_date)
     
-    # 태그 분석 데이터 생성
-    tag_analysis = get_tag_analysis_data(request.user)
+    # 태그 분석 데이터 생성 (선택된 월의 데이터만)
+    tag_analysis = get_tag_analysis_data(request.user, selected_date)
     
     # JavaScript용 데이터 준비 (날짜 객체를 문자열로 변환)
     daily_stats_for_js = {
@@ -96,9 +102,10 @@ def get_daily_stats_data(user, selected_date):
     active_blocks_count = 0  # 미분류 제외한 실제 활동 블록 수
     
     for block in time_blocks:
-        if block.tag:
+        # 태그 정보 처리 (None 체크 강화)
+        if block.tag and block.tag.name:
             tag_name = block.tag.name
-            tag_color = block.tag.color
+            tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
         else:
             tag_name = UNCLASSIFIED_TAG_NAME
             tag_color = UNCLASSIFIED_TAG_COLOR
@@ -185,9 +192,10 @@ def get_weekly_stats_data(user, selected_date):
         active_minutes = 0
         
         for block in daily_blocks:
-            if block.tag:
+            # 태그 정보 처리 (None 체크 강화)
+            if block.tag and block.tag.name:
                 tag_name = block.tag.name
-                tag_color = block.tag.color
+                tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
             else:
                 tag_name = UNCLASSIFIED_TAG_NAME
                 tag_color = UNCLASSIFIED_TAG_COLOR
@@ -224,6 +232,9 @@ def get_weekly_stats_data(user, selected_date):
     for tag_data in tag_weekly_stats.values():
         tag_data['total_hours'] = round(sum(tag_data['daily_minutes']) / 60, 1)
         tag_data['daily_hours'] = [round(m / 60, 1) for m in tag_data['daily_minutes']]
+        # 주간 평균시간 계산 (활동한 요일 기준)
+        active_days = sum(1 for minutes in tag_data['daily_minutes'] if minutes > 0)
+        tag_data['avg_hours'] = round(tag_data['total_hours'] / active_days, 1) if active_days > 0 else 0
     
     return {
         'start_date': start_of_week,
@@ -250,9 +261,10 @@ def get_monthly_stats_data(user, selected_date):
     daily_totals = [0] * total_days  # 일별 총 사용 시간
     
     for block in monthly_blocks:
-        if block.tag:
+        # 태그 정보 처리 (None 체크 강화)
+        if block.tag and block.tag.name:
             tag_name = block.tag.name
-            tag_color = block.tag.color
+            tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
         else:
             tag_name = UNCLASSIFIED_TAG_NAME
             tag_color = UNCLASSIFIED_TAG_COLOR
@@ -279,6 +291,9 @@ def get_monthly_stats_data(user, selected_date):
     for tag_data in daily_tag_stats.values():
         tag_data['daily_hours'] = [round(h, 1) for h in tag_data['daily_hours']]
         tag_data['total_hours'] = round(tag_data['total_hours'], 1)
+        # 월간 평균시간 계산 (활동한 일 기준)
+        active_days = sum(1 for hours in tag_data['daily_hours'] if hours > 0)
+        tag_data['avg_hours'] = round(tag_data['total_hours'] / active_days, 1) if active_days > 0 else 0
     
     daily_totals = [round(h, 1) for h in daily_totals]
     
@@ -301,15 +316,20 @@ def get_monthly_stats_data(user, selected_date):
         'avg_daily_hours': round(sum(daily_totals) / total_days, 1)
     }
 
-def get_tag_analysis_data(user):
-    """태그 분석 데이터 생성 (간단한 버전)"""
-    all_blocks = TimeBlock.objects.filter(user=user).select_related('tag')
+def get_tag_analysis_data(user, selected_date):
+    """태그 분석 데이터 생성 (선택된 월의 데이터만)"""
+    start_of_month, end_of_month = get_month_date_range(selected_date)
+    monthly_blocks = TimeBlock.objects.filter(
+        user=user,
+        date__range=[start_of_month, end_of_month]
+    ).select_related('tag')
     
     tag_analysis_data = {}
-    for block in all_blocks:
-        if block.tag:
+    for block in monthly_blocks:
+        # 태그 정보 처리 (None 체크 강화)
+        if block.tag and block.tag.name:
             tag_name = block.tag.name
-            tag_color = block.tag.color
+            tag_color = block.tag.color or '#808080'  # 색상이 없으면 기본값
         else:
             tag_name = UNCLASSIFIED_TAG_NAME
             tag_color = UNCLASSIFIED_TAG_COLOR
@@ -322,7 +342,7 @@ def get_tag_analysis_data(user):
                 'total_blocks': 0,
             }
         
-        tag_analysis_data[tag_name]['total_minutes'] += 10
+        tag_analysis_data[tag_name]['total_minutes'] += MINUTES_PER_SLOT
         tag_analysis_data[tag_name]['total_blocks'] += 1
     
     analysis_list = []
@@ -334,4 +354,5 @@ def get_tag_analysis_data(user):
             'total_blocks': data['total_blocks'],
         })
     
+    # 사용량 순으로 정렬
     return sorted(analysis_list, key=lambda x: x['total_hours'], reverse=True)

@@ -9,7 +9,7 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0">
                     <i class="fas fa-chart-bar me-2"></i>
-                    통계 분석
+                    {{ selected_date|date:"Y년 m월" }} 통계 분석
                 </h5>
                 <div class="d-flex gap-2">
                     <input type="date" 
@@ -26,22 +26,22 @@
             <div class="card-body">
                 <div class="row text-center">
                     <div class="col-md-3">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-clock text-primary me-2"></i>
-                            <div>
-                                <div class="fw-bold">{{ total_hours }}시간</div>
-                                <small class="text-muted">총 기록 시간</small>
+                                                    <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-clock text-primary me-2"></i>
+                                <div>
+                                    <div class="fw-bold">{{ total_hours }}시간</div>
+                                    <small class="text-muted">{{ selected_date|date:"Y년 m월" }} 기록 시간</small>
+                                </div>
                             </div>
-                        </div>
                     </div>
                     <div class="col-md-3">
-                        <div class="d-flex align-items-center justify-content-center">
-                            <i class="fas fa-calendar-check text-success me-2"></i>
-                            <div>
-                                <div class="fw-bold">{{ total_days }}일</div>
-                                <small class="text-muted">활동한 날</small>
+                                                    <div class="d-flex align-items-center justify-content-center">
+                                <i class="fas fa-calendar-check text-success me-2"></i>
+                                <div>
+                                    <div class="fw-bold">{{ total_days }}일</div>
+                                    <small class="text-muted">{{ selected_date|date:"Y년 m월" }} 활동한 날</small>
+                                </div>
                             </div>
-                        </div>
                     </div>
                     <div class="col-md-3">
                         <div class="d-flex align-items-center justify-content-center">
@@ -196,6 +196,22 @@
                                                 <strong>태그 종류:</strong> {{ weekly_stats.tag_weekly_stats|length }}개
                                             </div>
                                         </div>
+                                        <hr class="my-3">
+                                        <div class="row">
+                                            <div class="col-12">
+                                                <h6 class="mb-2">태그별 평균시간 (활동한 요일 기준)</h6>
+                                                <div class="row">
+                                                    {% for tag in weekly_stats.tag_weekly_stats %}
+                                                    <div class="col-md-4 col-sm-6 mb-2">
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge me-2" style="background-color: {{ tag.color }};">&nbsp;</span>
+                                                            <span class="small">{{ tag.name }}: <strong>{{ tag.avg_hours }}시간</strong></span>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                        </div>
                                     {% endwith %}
                                 </div>
                             </div>
@@ -242,6 +258,22 @@
                                             {% endwith %}<br>
                                             <strong>월간 기간:</strong> {{ monthly_stats.month }}<br>
                                             <strong>총 일수:</strong> {{ monthly_stats.total_days }}일
+                                        </div>
+                                    </div>
+                                    <hr class="my-3">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <h6 class="mb-2">태그별 평균시간 (활동한 일 기준)</h6>
+                                            <div class="row">
+                                                {% for tag in monthly_stats.tag_stats %}
+                                                <div class="col-md-3 col-sm-6 mb-2">
+                                                    <div class="d-flex align-items-center">
+                                                        <span class="badge me-2" style="background-color: {{ tag.color }};">&nbsp;</span>
+                                                        <span class="small">{{ tag.name }}: <strong>{{ tag.avg_hours }}시간</strong></span>
+                                                    </div>
+                                                </div>
+                                                {% endfor %}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -567,14 +599,13 @@ function renderMonthlyLineChart(monthlyData) {
         return;
     }
     
-    // 상위 5개 태그만 표시 (너무 많으면 복잡해짐)
-    const topTags = monthlyData.tag_stats.slice(0, 5);
+    const allMonthlyTags = monthlyData.tag_stats;
     
     charts.monthlyLine = new Chart(ctx, {
         type: 'line',
         data: {
             labels: monthlyData.day_labels,
-            datasets: topTags.map(tag => ({
+            datasets: allMonthlyTags.map(tag => ({
                 label: tag.name,
                 data: tag.daily_hours,
                 borderColor: tag.color,
