@@ -8,17 +8,23 @@ import json
 
 from .models import Tag
 from apps.dashboard.models import TimeBlock
+from apps.core.utils import serialize_for_js
 
 # Create your views here.
 
 @login_required
-@require_GET
 def index(request):
-    """
-    태그 관리 페이지
-    """
+    tags = Tag.objects.filter(Q(user=request.user) | Q(is_default=True)).order_by('-is_default', 'name')
     context = {
-        'page_title': '태그 관리'
+        'tags': tags,
+        'tags_json': serialize_for_js([
+            {
+                'id': tag.id,
+                'name': tag.name,
+                'color': tag.color,
+                'is_default': tag.is_default
+            } for tag in tags
+        ])
     }
     return render(request, 'tags/index.html', context)
 

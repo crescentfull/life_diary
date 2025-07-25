@@ -5,6 +5,7 @@
  * - 태그 폼 모달을 열고, 태그를 생성/수정/삭제하는 API를 호출합니다.
  * - 작업 성공 시 'tags-updated' 커스텀 이벤트를 발생시켜 각 페이지에서
  *   태그 목록을 새로고침하도록 합니다.
+ * - core/utils.js의 apiCall과 showNotification 함수를 사용합니다.
  * =================================================================================
  */
 
@@ -64,7 +65,7 @@ document.addEventListener('DOMContentLoaded', function() {
         tagFormModal.show();
     };
 
-    // 저장 버튼 클릭 이벤트
+    // 저장 버튼 클릭 이벤트 (core utils 사용)
     document.getElementById('saveTagFormBtn').addEventListener('click', async function() {
         const tagId = document.getElementById('tagFormTagId').value;
         const name = document.getElementById('tagFormName').value.trim();
@@ -73,66 +74,50 @@ document.addEventListener('DOMContentLoaded', function() {
         const is_default = isDefaultEl ? isDefaultEl.checked : false;
 
         if (!name) {
-            alert('태그명을 입력해주세요.');
+            showNotification('태그명을 입력해주세요.', 'warning');
             return;
         }
 
         const url = tagId ? `/api/tags/${tagId}/` : '/api/tags/';
         const method = tagId ? 'PUT' : 'POST';
+        const saveBtn = this;
 
         try {
-            const response = await fetch(url, {
+            const result = await apiCall(url, {
                 method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                },
-                body: JSON.stringify({ name, color, is_default })
+                data: { name, color, is_default },
+                loadingElement: saveBtn
             });
 
-            const result = await response.json();
-
-            if (result.success) {
-                tagFormModal.hide();
-                alert(result.message);
-                // 태그 목록 업데이트가 필요하다는 이벤트를 발생시킴
-                document.dispatchEvent(new CustomEvent('tags-updated'));
-            } else {
-                alert('오류: ' + result.message);
-            }
+            tagFormModal.hide();
+            showNotification(result.message, 'success');
+            // 태그 목록 업데이트가 필요하다는 이벤트를 발생시킴
+            document.dispatchEvent(new CustomEvent('tags-updated'));
+            
         } catch (error) {
             console.error('태그 저장 오류:', error);
-            alert('태그 저장 중 오류가 발생했습니다.');
+            showNotification(`태그 저장 실패: ${error.message}`, 'error');
         }
     });
 
-    // 전역 함수로 태그 삭제 함수 등록
+    // 전역 함수로 태그 삭제 함수 등록 (core utils 사용)
     window.deleteTag = async function(tagId, tagName) {
         if (!confirm(`'${tagName}' 태그를 정말 삭제하시겠습니까?`)) {
             return;
         }
 
         try {
-            const response = await fetch(`/api/tags/${tagId}/`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCookie('csrftoken')
-                }
+            const result = await apiCall(`/api/tags/${tagId}/`, {
+                method: 'DELETE'
             });
-
-            const result = await response.json();
             
-            if (result.success) {
-                alert(result.message);
-                // 태그 목록 업데이트가 필요하다는 이벤트를 발생시킴
-                document.dispatchEvent(new CustomEvent('tags-updated'));
-            } else {
-                alert('오류: ' + result.message);
-            }
+            showNotification(result.message, 'success');
+            // 태그 목록 업데이트가 필요하다는 이벤트를 발생시킴
+            document.dispatchEvent(new CustomEvent('tags-updated'));
+            
         } catch (error) {
             console.error('태그 삭제 오류:', error);
-            alert('태그 삭제 중 오류가 발생했습니다.');
+            showNotification(`태그 삭제 실패: ${error.message}`, 'error');
         }
     };
 }); 

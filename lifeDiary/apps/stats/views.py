@@ -4,14 +4,22 @@ from django.db.models import Count, Q
 from django.utils import timezone
 from datetime import datetime, date, timedelta
 import json
-from django.core.serializers.json import DjangoJSONEncoder
 
 from apps.dashboard.models import TimeBlock
 from apps.tags.models import Tag
-
-# 상수 정의
-UNCLASSIFIED_TAG_NAME = "미분류"
-UNCLASSIFIED_TAG_COLOR = "#808080"
+from apps.core.utils import (
+    safe_date_parse,
+    serialize_for_js,
+    calculate_time_statistics,
+    get_week_date_range,
+    get_month_date_range,
+    UNCLASSIFIED_TAG_NAME,
+    UNCLASSIFIED_TAG_COLOR,
+    SLEEP_TAG_NAME,
+    TOTAL_SLOTS_PER_DAY,
+    SLOTS_PER_HOUR,
+    MINUTES_PER_SLOT
+)
 
 # Create your views here.
 
@@ -20,12 +28,8 @@ def index(request):
     """
     통계 메인 페이지 - Django 템플릿 기반으로 데이터 처리
     """
-    # 기본 날짜 설정
-    selected_date_str = request.GET.get('date')
-    try:
-        selected_date = datetime.strptime(selected_date_str, '%Y-%m-%d').date() if selected_date_str else date.today()
-    except ValueError:
-        selected_date = date.today()
+    # 기본 날짜 설정 (core 유틸리티 사용)
+    selected_date = safe_date_parse(request.GET.get('date'))
     
     # 기본 통계 데이터
     total_blocks = TimeBlock.objects.filter(user=request.user).count()
@@ -67,15 +71,15 @@ def index(request):
         'weekly_stats': weekly_stats,
         'monthly_stats': monthly_stats,
         'tag_analysis': tag_analysis,
-        # JavaScript에서 사용할 수 있도록 JSON 문자열로 변환
-        'daily_stats_json': json.dumps(daily_stats_for_js, cls=DjangoJSONEncoder),
-        'weekly_stats_json': json.dumps(weekly_stats_for_js, cls=DjangoJSONEncoder),
-        'tag_analysis_json': json.dumps(tag_analysis, cls=DjangoJSONEncoder),
-        'monthly_stats_json': json.dumps({
+        # JavaScript에서 사용할 수 있도록 JSON 문자열로 변환 (core 함수 사용)
+        'daily_stats_json': serialize_for_js(daily_stats_for_js),
+        'weekly_stats_json': serialize_for_js(weekly_stats_for_js),
+        'tag_analysis_json': serialize_for_js(tag_analysis),
+        'monthly_stats_json': serialize_for_js({
             'day_labels': monthly_stats['day_labels'],
             'tag_stats': monthly_stats['tag_stats'],
             'daily_totals': monthly_stats['daily_totals']
-        }, cls=DjangoJSONEncoder),
+        }),
     }
     return render(request, 'stats/index.html', context)
 
@@ -107,15 +111,15 @@ def get_daily_stats_data(user, selected_date):
                 'blocks': 0
             }
         
-        tag_stats[tag_name]['minutes'] += 10
+        tag_stats[tag_name]['minutes'] += MINUTES_PER_SLOT
         tag_stats[tag_name]['blocks'] += 1
         
         # 실제 활동 블록 카운트 (미분류 제외)
         if tag_name != UNCLASSIFIED_TAG_NAME:
             active_blocks_count += 1
         
-        hour = block.slot_index // 6
-        hourly_stats[hour][tag_name] = hourly_stats[hour].get(tag_name, 0) + 10
+        hour = block.slot_index // SLOTS_PER_HOUR
+        hourly_stats[hour][tag_name] = hourly_stats[hour].get(tag_name, 0) + MINUTES_PER_SLOT
     
     # 빈 슬롯을 미분류로 채우기
     for hour in range(24):
@@ -133,7 +137,7 @@ def get_daily_stats_data(user, selected_date):
             
             hourly_stats[hour][UNCLASSIFIED_TAG_NAME] = hourly_stats[hour].get(UNCLASSIFIED_TAG_NAME, 0) + empty_minutes
             tag_stats[UNCLASSIFIED_TAG_NAME]['minutes'] += empty_minutes
-            tag_stats[UNCLASSIFIED_TAG_NAME]['blocks'] += empty_minutes // 10
+            tag_stats[UNCLASSIFIED_TAG_NAME]['blocks'] += empty_minutes // MINUTES_PER_SLOT
     
     # 시간 단위로 변환
     for tag_data in tag_stats.values():
@@ -152,10 +156,10 @@ def get_daily_stats_data(user, selected_date):
         'date': selected_date,
         'tag_stats': sorted(tag_stats.values(), key=lambda x: x['minutes'], reverse=True),
         'hourly_stats': hourly_stats,
-        'total_blocks': 144,
+        'total_blocks': TOTAL_SLOTS_PER_DAY,
         'total_hours': 24.0,
-        'active_hours': round(active_blocks_count * 10 / 60, 1),  # 미분류 제외한 실제 활동 시간
-        'fill_percentage': round((len(time_blocks) / 144) * 100, 1),
+        'active_hours': round(active_blocks_count * MINUTES_PER_SLOT / 60, 1),  # 미분류 제외한 실제 활동 시간
+        'fill_percentage': round((len(time_blocks) / TOTAL_SLOTS_PER_DAY) * 100, 1),
         'peak_hour': peak_hour,
         'max_minutes': max_minutes,
         'top_tag': sorted(tag_stats.values(), key=lambda x: x['minutes'], reverse=True)[0] if tag_stats else None
@@ -163,12 +167,12 @@ def get_daily_stats_data(user, selected_date):
 
 def get_weekly_stats_data(user, selected_date):
     """주간 통계 데이터 생성"""
-    start_of_week = selected_date - timedelta(days=selected_date.weekday())
+    start_of_week, end_of_week = get_week_date_range(selected_date)
     week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
     
     weekly_data = []
     tag_weekly_stats = {}
-    excluded_tags = {UNCLASSIFIED_TAG_NAME, '수면'}
+    excluded_tags = {UNCLASSIFIED_TAG_NAME, SLEEP_TAG_NAME}
     
     for date_item in week_dates:
         daily_blocks = TimeBlock.objects.filter(
@@ -190,7 +194,7 @@ def get_weekly_stats_data(user, selected_date):
 
             if tag_name not in daily_tag_stats:
                 daily_tag_stats[tag_name] = 0
-            daily_tag_stats[tag_name] += 10
+            daily_tag_stats[tag_name] += MINUTES_PER_SLOT
             
             if tag_name not in excluded_tags:
                 active_blocks_count += 1
@@ -231,11 +235,7 @@ def get_weekly_stats_data(user, selected_date):
 
 def get_monthly_stats_data(user, selected_date):
     """월간 통계 데이터 생성 - 선 그래프용"""
-    start_of_month = selected_date.replace(day=1)
-    if start_of_month.month == 12:
-        end_of_month = start_of_month.replace(year=start_of_month.year + 1, month=1) - timedelta(days=1)
-    else:
-        end_of_month = start_of_month.replace(month=start_of_month.month + 1) - timedelta(days=1)
+    start_of_month, end_of_month = get_month_date_range(selected_date)
     
     monthly_blocks = TimeBlock.objects.filter(
         user=user,
@@ -270,9 +270,10 @@ def get_monthly_stats_data(user, selected_date):
             }
         
         # 10분 = 1/6 시간
-        daily_tag_stats[tag_name]['daily_hours'][day_index] += 1/6
-        daily_tag_stats[tag_name]['total_hours'] += 1/6
-        daily_totals[day_index] += 1/6
+        hours_increment = MINUTES_PER_SLOT / 60
+        daily_tag_stats[tag_name]['daily_hours'][day_index] += hours_increment
+        daily_tag_stats[tag_name]['total_hours'] += hours_increment
+        daily_totals[day_index] += hours_increment
     
     # 시간 반올림
     for tag_data in daily_tag_stats.values():

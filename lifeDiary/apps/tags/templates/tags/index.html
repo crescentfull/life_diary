@@ -42,70 +42,51 @@
 <script src="{% static 'core/js/tag.js' %}" defer></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // 서버에서 내려준 태그 목록 (최초 진입 시)
+    const initialTags = JSON.parse('{{ tags_json|escapejs }}');
     
-    // 태그 목록을 로드하고 표시하는 함수
-    async function loadAndDisplayTags() {
+    // 태그 목록을 표시하는 함수 (API fetch 없이 데이터만 받아서 렌더)
+    function renderTags(tags) {
         const container = document.getElementById('tagListContainer');
         const emptyState = document.getElementById('tagEmptyState');
-        
-        try {
-            const response = await fetch('/api/tags/');
-            const data = await response.json();
-
-            if (!data.success) {
-                container.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
-                return;
-            }
-
-            const tags = data.tags;
-            if (tags.length === 0) {
-                container.innerHTML = '';
-                emptyState.style.display = 'block';
-                return;
-            }
-
-            emptyState.style.display = 'none';
-            container.innerHTML = ''; // 기존 목록 초기화
-
-            // 기본 태그와 사용자 태그 분리
-            const defaultTags = tags.filter(t => t.is_default);
-            const userTags = tags.filter(t => !t.is_default);
-
-            // 기본 태그 섹션 (관리자에게만 완전하게 보임)
-            if (defaultTags.length > 0) {
-                let html = `
-                    <div class="col-12 mb-3">
-                        <h6 class="text-muted"><i class="fas fa-star me-1"></i> 기본 태그</h6>
-                    </div>`;
-                defaultTags.forEach(tag => {
-                    html += createTagCardHtml(tag);
-                });
-                container.innerHTML += html;
-            }
-            
-            // 사용자 태그 섹션
-            if (userTags.length > 0) {
-                let html = `
-                    <div class="col-12 mb-3 ${defaultTags.length > 0 ? 'mt-4' : ''}">
-                        <h6 class="text-muted"><i class="fas fa-user me-1"></i> 개인 태그</h6>
-                    </div>`;
-                userTags.forEach(tag => {
-                    html += createTagCardHtml(tag);
-                });
-                container.innerHTML += html;
-            }
-
-        } catch (error) {
-            console.error('태그 로드 오류:', error);
-            container.innerHTML = `<div class="alert alert-danger">태그를 불러오는 중 오류가 발생했습니다.</div>`;
+        if (!tags || tags.length === 0) {
+            container.innerHTML = '';
+            emptyState.style.display = 'block';
+            return;
+        }
+        emptyState.style.display = 'none';
+        container.innerHTML = '';
+        // 기본 태그와 사용자 태그 분리
+        const defaultTags = tags.filter(t => t.is_default);
+        const userTags = tags.filter(t => !t.is_default);
+        // 기본 태그 섹션
+        if (defaultTags.length > 0) {
+            let html = `
+                <div class="col-12 mb-3">
+                    <h6 class="text-muted"><i class="fas fa-star me-1"></i> 기본 태그</h6>
+                </div>`;
+            defaultTags.forEach(tag => {
+                html += createTagCardHtml(tag);
+            });
+            container.innerHTML += html;
+        }
+        // 사용자 태그 섹션
+        if (userTags.length > 0) {
+            let html = `
+                <div class="col-12 mb-3 ${defaultTags.length > 0 ? 'mt-4' : ''}">
+                    <h6 class="text-muted"><i class="fas fa-user me-1"></i> 개인 태그</h6>
+                </div>`;
+            userTags.forEach(tag => {
+                html += createTagCardHtml(tag);
+            });
+            container.innerHTML += html;
         }
     }
 
-    // 태그 카드 HTML 생성 함수
+    // 태그 카드 HTML 생성 함수 (기존과 동일)
     function createTagCardHtml(tag) {
         const canEdit = !tag.is_default || {{ user.is_superuser|yesno:"true,false" }};
         const canDelete = !tag.is_default || {{ user.is_superuser|yesno:"true,false" }};
-
         return `
             <div class="col-md-6 col-lg-4 mb-3">
                 <div class="card h-100 ${tag.is_default ? 'border-warning' : ''}">
@@ -135,8 +116,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
             </div>`;
     }
-
-    // HTML 특수문자 이스케이프 함수
+    // HTML 특수문자 이스케이프 함수 (기존과 동일)
     function escapeHTML(str) {
         return str.replace(/[&<>"']/g, function(match) {
             return {
@@ -148,12 +128,26 @@ document.addEventListener('DOMContentLoaded', function() {
             }[match];
         });
     }
-
-    // 'tags-updated' 이벤트 수신 시 태그 목록 새로고침
-    document.addEventListener('tags-updated', loadAndDisplayTags);
-
-    // 초기 로드
-    loadAndDisplayTags();
+    // 'tags-updated' 이벤트 수신 시에만 fetch로 최신 목록 갱신
+    async function fetchAndRenderTags() {
+        const container = document.getElementById('tagListContainer');
+        const emptyState = document.getElementById('tagEmptyState');
+        try {
+            const response = await fetch('/api/tags/');
+            const data = await response.json();
+            if (!data.success) {
+                container.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                return;
+            }
+            renderTags(data.tags);
+        } catch (error) {
+            console.error('태그 로드 오류:', error);
+            container.innerHTML = `<div class="alert alert-danger">태그를 불러오는 중 오류가 발생했습니다.</div>`;
+        }
+    }
+    document.addEventListener('tags-updated', fetchAndRenderTags);
+    // 최초 진입 시에는 서버 데이터로만 렌더링
+    renderTags(initialTags);
 });
 </script>
 {% endblock %} 

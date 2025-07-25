@@ -136,10 +136,13 @@
                 <!-- 범례 -->
                 <div class="mt-3">
                     <div class="d-flex flex-wrap gap-2" id="tagLegend">
-                        <div class="spinner-border spinner-border-sm text-secondary" role="status">
-                            <span class="visually-hidden">범례 로딩 중...</span>
-                        </div>
-                        <small class="text-muted">범례 로딩 중...</small>
+                        {% if user_tags %}
+                            {% for tag in user_tags %}
+                                <span class="badge" style="background-color: {{ tag.color }};">{{ tag.name }}</span>
+                            {% endfor %}
+                        {% else %}
+                            <small class="text-muted">생성된 태그가 없습니다.</small>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -188,14 +191,25 @@
                         </div>
                     </div>
                     
-                    <!-- 태그 목록이 동적으로 로드됩니다 -->
+                    <!-- 태그 목록 -->
                     <div class="d-grid gap-2" id="tagContainer">
-                        <div class="text-center py-3">
-                            <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                <span class="visually-hidden">태그 로딩 중...</span>
+                        {% if user_tags %}
+                            {% for tag in user_tags %}
+                                <button class="btn btn-outline-secondary btn-sm tag-btn text-start" 
+                                        data-tag-id="{{ tag.id }}"
+                                        onclick="selectTag({{ tag.id }}, '{{ tag.color }}', '{{ tag.name }}')">
+                                    <span class="badge me-2" style="background-color: {{ tag.color }};">&nbsp;</span>
+                                    {{ tag.name }}
+                                    {% if tag.is_default %}
+                                        <i class="fas fa-star text-warning ms-1" title="기본 태그"></i>
+                                    {% endif %}
+                                </button>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-2">
+                                <p class="text-muted small">태그가 없습니다.<br>'새 태그' 버튼으로 추가하세요.</p>
                             </div>
-                            <div class="mt-2 text-muted small">태그 로딩 중...</div>
-                        </div>
+                        {% endif %}
                     </div>
                 </div>
                 
@@ -253,15 +267,16 @@
         // 대시보드 관련 이벤트 리스너 등록
         initializeDashboard();
         
-        // 태그 업데이트 이벤트 수신
+        // 태그 업데이트 이벤트 수신 (동적 변경 시에만 API 호출)
         document.addEventListener('tags-updated', function() {
             console.log("Dashboard: 'tags-updated' 이벤트 수신. 태그 목록을 새로고침합니다.");
-            loadAvailableTags();
+            loadAvailableTags(); // 태그가 동적으로 변경된 경우에만 API 호출
         });
     });
 
     function initializeDashboard() {
-        loadAvailableTags();
+        // 서버에서 전달받은 태그 데이터를 사용 (초기 API 호출 불필요)
+        // loadAvailableTags(); // 제거됨 - 서버사이드 렌더링으로 대체
         
         const dateSelector = document.getElementById('dateSelector');
         if (dateSelector) {
@@ -438,51 +453,86 @@
         updateButtons();
     };
 
-    // 슬롯 저장 (실제 데이터베이스에 저장)
+    // 슬롯 저장 (core API 래퍼 사용)
     const saveSlot = async () => {
-        if (selectedSlots.size === 0 || !selectedTag) {
-            alert('슬롯과 태그를 선택해주세요.');
+        if (selectedSlots.size === 0) {
+            showNotification('슬롯을 선택해주세요.', 'warning');
             return;
         }
-        const memo = document.getElementById('memoInput').value || '';
-        const date = document.getElementById('dateSelector').value;
+        
+        if (!selectedTag) {
+            showNotification('태그를 선택해주세요.', 'warning');
+            return;
+        }
 
-        const response = await fetch('/api/time-blocks/', {
+        const saveBtn = document.getElementById('saveBtn');
+        
+        try {
+            const memo = document.getElementById('memoInput').value.trim();
+            const date = document.getElementById('dateSelector').value;
+            
+            const result = await apiCall('/api/time-blocks/', {
                 method: 'POST',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-            body: JSON.stringify({ slot_indexes: Array.from(selectedSlots), tag_id: selectedTag.id, memo, date })
-        });
-            const result = await response.json();
-            if (result.success) {
-            location.reload();
-            } else {
-                alert('저장 실패: ' + result.message);
+                data: {
+                    slot_indexes: Array.from(selectedSlots),
+                    tag_id: selectedTag.id,
+                    memo: memo,
+                    date: date
+                },
+                loadingElement: saveBtn
+            });
+            
+            showNotification(result.message, 'success');
+            // 페이지 새로고침 대신 동적 업데이트 가능하지만, 현재는 새로고침
+            setTimeout(() => location.reload(), 1000);
+            
+        } catch (error) {
+            showNotification(`저장 실패: ${error.message}`, 'error');
+            console.error('Save error:', error);
         }
     };
     
-    // 슬롯 삭제 (실제 데이터베이스에서 삭제)
+    // 슬롯 삭제 (core API 래퍼 사용)
     const deleteSlot = async () => {
-        if (selectedSlots.size === 0) return;
+        if (selectedSlots.size === 0) {
+            showNotification('삭제할 슬롯을 선택해주세요.', 'warning');
+            return;
+        }
+        
         const filledSlots = Array.from(selectedSlots).filter(idx => 
             document.querySelector(`[data-slot-index="${idx}"]`)?.classList.contains('filled')
         );
+        
         if (filledSlots.length === 0) {
-            alert('삭제할 기록이 없습니다.');
+            showNotification('삭제할 기록이 없습니다.', 'warning');
             return;
         }
-        if (!confirm(`${filledSlots.length}개의 기록된 슬롯을 삭제하시겠습니까?`)) return;
         
-        const date = document.getElementById('dateSelector').value;
-        const response = await fetch('/api/time-blocks/', {
-            method: 'DELETE',
-            headers: {'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')},
-            body: JSON.stringify({ slot_indexes: filledSlots, date })
-        });
-                const result = await response.json();
-                if (result.success) {
-            location.reload();
-                } else {
-                    alert('삭제 실패: ' + result.message);
+        if (!confirm(`${filledSlots.length}개의 기록된 슬롯을 삭제하시겠습니까?`)) {
+            return;
+        }
+        
+        const deleteBtn = document.getElementById('deleteBtn');
+        
+        try {
+            const date = document.getElementById('dateSelector').value;
+            
+            const result = await apiCall('/api/time-blocks/', {
+                method: 'DELETE',
+                data: {
+                    slot_indexes: filledSlots,
+                    date: date
+                },
+                loadingElement: deleteBtn
+            });
+            
+            showNotification(result.message, 'success');
+            // 페이지 새로고침 대신 동적 업데이트 가능하지만, 현재는 새로고침
+            setTimeout(() => location.reload(), 1000);
+            
+        } catch (error) {
+            showNotification(`삭제 실패: ${error.message}`, 'error');
+            console.error('Delete error:', error);
         }
     };
 
