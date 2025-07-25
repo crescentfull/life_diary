@@ -155,7 +155,7 @@ def get_weekly_stats_data(user, selected_date, calculator):
     week_dates = [calculator.start_of_week + timedelta(days=i) for i in range(7)]
     weekly_data = []
     tag_weekly_stats = {}
-    excluded_tags = {SLEEP_TAG_NAME}
+    excluded_tags = {SLEEP_TAG_NAME, UNCLASSIFIED_TAG_NAME}
     for date_item in week_dates:
         daily_blocks = TimeBlock.objects.filter(user=user, date=date_item).select_related('tag')
         daily_tag_stats = {}
