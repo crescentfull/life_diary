@@ -7,6 +7,9 @@ from django.contrib.auth.decorators import login_required
 from .models import UserGoal, UserNote
 from .forms import UserGoalForm, UserNoteForm
 from apps.tags.models import Tag
+from apps.stats.logic import get_weekly_stats_data, get_monthly_stats_data, StatsCalculator
+
+import datetime
 
 @require_POST
 def logout_view(request):
@@ -142,9 +145,6 @@ def mypage(request):
     user = request.user
     goals = UserGoal.objects.filter(user=user).select_related('tag')
     # 통계 데이터 가져오기
-    from apps.stats.views import get_weekly_stats_data, get_monthly_stats_data, StatsCalculator
-    from apps.core.utils import safe_date_parse
-    import datetime
     today = datetime.date.today()
     calculator = StatsCalculator(user, today)
     weekly_stats = get_weekly_stats_data(user, today, calculator)

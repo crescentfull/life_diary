@@ -1,4 +1,33 @@
 
+<!-- AI 피드백 메시지 토스트 알림 (AI 피드백 박스 바로 위, 자동 사라짐 없음) -->
+{% if ai_feedback_msgs %}
+  <div class="d-flex flex-row flex-wrap gap-1" style="width: 100%;">
+    {% for msg in ai_feedback_msgs %}
+      <div class="toast align-items-center text-bg-primary border-0 show mb-3"
+           role="alert" aria-live="assertive" aria-atomic="true"
+           style="min-width: 350px; max-width: 400px;">
+        <div class="d-flex">
+          <div class="toast-body">
+            <i class="fas fa-robot me-2"></i><strong>AI 피드백</strong>
+            <div class="mt-2">{{ msg }}</div>
+          </div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                  data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var toastEl = document.getElementById('aiFeedbackToast');
+  if (toastEl) {
+    var toast = new bootstrap.Toast(toastEl, { autohide: false });
+    toast.show();
+  }
+});
+</script>
+
 {% block content %}
 <div class="container mt-4">
   <div class="row mb-4">
@@ -40,7 +69,7 @@
                         <li class="list-group-item">
                           <div class="fw-bold">{{ goal.tag.name }}</div>
                           <div>목표: <span class="text-secondary">{{ goal.target_hours|floatformat:1 }}h(평균)</span>
-                          / 실제: <span class="text-info">{{ goal.actual|floatformat:1 }}h</span></div>
+                          / 실제: <span class="text-info">{{ goal.actual|floatformat:1 }}h(평균)</span></div>
                           <div>달성률: <span class="fw-bold">{% if goal.percent is not None %}{{ goal.percent }}%{% else %}-{% endif %}</span></div>
                         </li>
                       {% endfor %}
@@ -62,7 +91,7 @@
                         <li class="list-group-item">
                           <div class="fw-bold">{{ goal.tag.name }}</div>
                           <div>목표: <span class="text-secondary">{{ goal.target_hours|floatformat:1 }}h(평균)</span>
-                          / 실제: <span class="text-info">{{ goal.actual|floatformat:1 }}h</span></div>
+                          / 실제: <span class="text-info">{{ goal.actual|floatformat:1 }}h(평균)</span></div>
                           <div>달성률: <span class="fw-bold">{% if goal.percent is not None %}{{ goal.percent }}%{% else %}-{% endif %}</span></div>
                         </li>
                       {% endfor %}
