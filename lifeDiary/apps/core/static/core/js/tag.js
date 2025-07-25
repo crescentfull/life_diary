@@ -8,22 +8,6 @@
  * =================================================================================
  */
 
-// CSRF 토큰 가져오기 함수 (Django API 호출에 필요)
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
 document.addEventListener('DOMContentLoaded', function() {
     const tagFormModalEl = document.getElementById('tagFormModal');
     if (!tagFormModalEl) return; // 모달이 없는 페이지에서는 실행하지 않음

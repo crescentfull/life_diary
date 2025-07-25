@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     "apps.stats",
     "apps.tags",
     "apps.users",
+    "apps.core",
 ]
 
 MIDDLEWARE = [
