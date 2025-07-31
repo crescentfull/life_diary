@@ -220,17 +220,17 @@
             }, 300);
         });
         
-        // 페이지 이동 시 로딩 모달 표시
+        // 페이지 이동 시 로딩 모달 표시 (한 번만)
+        let isNavigating = false;
         document.addEventListener('click', function(e) {
             const link = e.target.closest('a');
-            if (link && link.href && !link.href.startsWith('javascript:') && !link.href.startsWith('#') && !link.target) {
+            if (link && link.href && !link.href.startsWith('javascript:') && !link.href.startsWith('#') && !link.target && !isNavigating) {
                 // 외부 링크나 특별한 링크가 아닌 경우에만 로딩 모달 표시
                 if (!link.href.includes('admin') && !link.href.includes('logout')) {
-                    setTimeout(() => {
-                        if (loadingModal) {
-                            loadingModal.show();
-                        }
-                    }, 100);
+                    isNavigating = true;
+                    if (loadingModal) {
+                        loadingModal.show();
+                    }
                 }
             }
         });
