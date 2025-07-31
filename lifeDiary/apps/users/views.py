@@ -169,9 +169,12 @@ def mypage(request):
             for tag_stat in weekly_stats['tag_weekly_stats']:
                 if tag_stat['name'] == goal.tag.name:
                     actual = tag_stat['total_hours']
-            percent = int((actual / (goal.target_hours * 7)) * 100) if goal.target_hours > 0 else None
+            # 목표 시간을 주간 총 시간으로 변환 (일평균 * 7일)
+            target_total = goal.target_hours * 7
+            percent = int((actual / target_total) * 100) if target_total > 0 else None
             goal.percent = percent
             goal.actual = actual
+            goal.target_hours = target_total  # 목표 시간을 총 시간으로 변경
         elif goal.period == 'monthly':
             # 월간: 해당 태그 월간 총합
             actual = 0
@@ -179,9 +182,12 @@ def mypage(request):
                 if tag_stat['name'] == goal.tag.name:
                     actual = tag_stat['total_hours']
             month_days = monthly_stats['total_days']
-            percent = int((actual / (goal.target_hours * month_days)) * 100) if goal.target_hours > 0 else None
+            # 목표 시간을 월간 총 시간으로 변환 (일평균 * 월일수)
+            target_total = goal.target_hours * month_days
+            percent = int((actual / target_total) * 100) if target_total > 0 else None
             goal.percent = percent
             goal.actual = actual
+            goal.target_hours = target_total  # 목표 시간을 총 시간으로 변경
     if request.method == 'POST':
         form = UserGoalForm(request.POST)
         if form.is_valid():
