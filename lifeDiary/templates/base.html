@@ -194,14 +194,12 @@
             loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
             loadingModal.show();
             
-            // 페이지가 완전히 로드되면 로딩 모달 숨김
-            window.addEventListener('load', function() {
-                setTimeout(() => {
-                    if (loadingModal) {
-                        loadingModal.hide();
-                    }
-                }, 500); // 0.5초 후 숨김 (최소 로딩 시간 보장)
-            });
+            // DOM이 준비되면 바로 숨김 (최소 로딩 시간 보장)
+            setTimeout(() => {
+                if (loadingModal) {
+                    loadingModal.hide();
+                }
+            }, 500);
         });
         
         // HTMX 요청 시 로딩 모달 표시 (제거됨)
