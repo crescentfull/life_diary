@@ -204,21 +204,20 @@
             });
         });
         
-        // HTMX 요청 시 로딩 모달 표시
-        document.body.addEventListener('htmx:beforeRequest', function() {
-            if (loadingModal) {
-                loadingModal.show();
-            }
-        });
+        // HTMX 요청 시 로딩 모달 표시 (제거됨)
+        // document.body.addEventListener('htmx:beforeRequest', function() {
+        //     if (loadingModal) {
+        //         loadingModal.show();
+        //     }
+        // });
         
-        // HTMX 응답 완료 시 로딩 모달 숨김
-        document.body.addEventListener('htmx:afterRequest', function() {
-            setTimeout(() => {
-                if (loadingModal) {
-                    loadingModal.hide();
-                }
-            }, 300);
-        });
+        // HTMX 응답 완료 시 로딩 모달 숨김 (제거됨)
+        // document.body.addEventListener('htmx:afterRequest', function() {
+        //     setTimeout(() => {
+        //         if (loadingModal) {
+        //             loadingModal.hide();
+        //     }, 300);
+        // });
         
         // 페이지 이동 시 로딩 모달 표시 (한 번만)
         let isNavigating = false;
