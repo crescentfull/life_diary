@@ -25,9 +25,52 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
     
+    <style>
+        /* 로딩 모달 스타일 */
+        .loading-modal {
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+        
+        .loading-spinner {
+            width: 3rem;
+            height: 3rem;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            color: #6c757d;
+            font-size: 1.1rem;
+            margin-top: 1rem;
+        }
+    </style>
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body data-is-superuser="{{ user.is_superuser|yesno:'true,false' }}">
+    <!-- 로딩 모달 -->
+    <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-body text-center py-5">
+                    <div class="loading-spinner mx-auto"></div>
+                    <div class="loading-text mt-3">
+                        <i class="fas fa-clock me-2"></i>
+                        페이지를 불러오는 중입니다...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Navigation -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm mb-4">
         <div class="container">
@@ -143,6 +186,55 @@
     <!-- Custom JS -->
     <script src="{% static 'core/js/utils.js' %}" defer></script>
     <script>
+        // 로딩 모달 관리
+        let loadingModal;
+        
+        // 페이지 로딩 시작 시 로딩 모달 표시
+        document.addEventListener('DOMContentLoaded', function() {
+            loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+            loadingModal.show();
+            
+            // 페이지가 완전히 로드되면 로딩 모달 숨김
+            window.addEventListener('load', function() {
+                setTimeout(() => {
+                    if (loadingModal) {
+                        loadingModal.hide();
+                    }
+                }, 500); // 0.5초 후 숨김 (최소 로딩 시간 보장)
+            });
+        });
+        
+        // HTMX 요청 시 로딩 모달 표시
+        document.body.addEventListener('htmx:beforeRequest', function() {
+            if (loadingModal) {
+                loadingModal.show();
+            }
+        });
+        
+        // HTMX 응답 완료 시 로딩 모달 숨김
+        document.body.addEventListener('htmx:afterRequest', function() {
+            setTimeout(() => {
+                if (loadingModal) {
+                    loadingModal.hide();
+                }
+            }, 300);
+        });
+        
+        // 페이지 이동 시 로딩 모달 표시
+        document.addEventListener('click', function(e) {
+            const link = e.target.closest('a');
+            if (link && link.href && !link.href.startsWith('javascript:') && !link.href.startsWith('#') && !link.target) {
+                // 외부 링크나 특별한 링크가 아닌 경우에만 로딩 모달 표시
+                if (!link.href.includes('admin') && !link.href.includes('logout')) {
+                    setTimeout(() => {
+                        if (loadingModal) {
+                            loadingModal.show();
+                        }
+                    }, 100);
+                }
+            }
+        });
+        
         // HTMX 설정
         document.body.addEventListener('htmx:configRequest', (evt) => {
             evt.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
