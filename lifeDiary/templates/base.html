@@ -57,7 +57,7 @@
 </head>
 <body data-is-superuser="{{ user.is_superuser|yesno:'true,false' }}">
     <!-- 로딩 모달 -->
-    <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal fade" id="loadingModal" tabindex="-1" aria-labelledby="loadingModalLabel" data-bs-backdrop="static" data-bs-keyboard="false" inert>
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-body text-center py-5">
@@ -202,33 +202,30 @@
             }, 500);
         });
         
-        // HTMX 요청 시 로딩 모달 표시 (제거됨)
-        // document.body.addEventListener('htmx:beforeRequest', function() {
-        //     if (loadingModal) {
-        //         loadingModal.show();
-        //     }
-        // });
-        
-        // HTMX 응답 완료 시 로딩 모달 숨김 (제거됨)
-        // document.body.addEventListener('htmx:afterRequest', function() {
-        //     setTimeout(() => {
-        //         if (loadingModal) {
-        //             loadingModal.hide();
-        //     }, 300);
-        // });
-        
         // 페이지 이동 시 로딩 모달 표시 (한 번만)
         let isNavigating = false;
         document.addEventListener('click', function(e) {
             const link = e.target.closest('a');
+            
             if (link && link.href && !link.href.startsWith('javascript:') && !link.href.startsWith('#') && !link.target && !isNavigating) {
                 // 외부 링크나 특별한 링크가 아닌 경우에만 로딩 모달 표시
-                if (!link.href.includes('admin') && !link.href.includes('logout')) {
+                if (!link.href.includes('admin') && !link.href.includes('logout') && !link.href.endsWith('#')) {
                     isNavigating = true;
                     if (loadingModal) {
                         loadingModal.show();
                     }
                 }
+            }
+        });
+        
+        // Dropdown 토글 감지 및 로딩 모달 숨김
+        document.addEventListener('click', function(e) {
+            // Bootstrap dropdown 토글 버튼 클릭 감지
+            if (e.target.matches('[data-bs-toggle="dropdown"]') || e.target.closest('[data-bs-toggle="dropdown"]')) {
+                if (loadingModal) {
+                    loadingModal.hide();
+                }
+                isNavigating = false; // 네비게이션 플래그 리셋
             }
         });
         
