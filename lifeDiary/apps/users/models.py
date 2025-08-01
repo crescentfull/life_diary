@@ -5,10 +5,14 @@ from apps.tags.models import Tag
 
 # Create your models here.
 
+
 class UserGoal(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     tag = models.ForeignKey(Tag, on_delete=models.CASCADE)
-    period = models.CharField(max_length=10, choices=[('daily', '일간'), ('weekly', '주간'), ('monthly', '월간')])
+    period = models.CharField(
+        max_length=10,
+        choices=[("daily", "일간"), ("weekly", "주간"), ("monthly", "월간")],
+    )
     target_hours = models.FloatField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -19,17 +23,24 @@ class UserGoal(models.Model):
     def clean(self):
         """목표 시간 유효성 검사"""
         super().clean()
-        
+
         if self.target_hours is not None:
-            if self.period == 'daily':
+            if self.period == "daily":
                 if self.target_hours > 24:
-                    raise ValidationError({'target_hours': '일간 목표는 24시간을 초과할 수 없습니다.'})
-            elif self.period == 'weekly':
+                    raise ValidationError(
+                        {"target_hours": "일간 목표는 24시간을 초과할 수 없습니다."}
+                    )
+            elif self.period == "weekly":
                 if self.target_hours > 100:
-                    raise ValidationError({'target_hours': '주간 목표는 100시간을 초과할 수 없습니다.'})
-            elif self.period == 'monthly':
+                    raise ValidationError(
+                        {"target_hours": "주간 목표는 100시간을 초과할 수 없습니다."}
+                    )
+            elif self.period == "monthly":
                 if self.target_hours > 300:
-                    raise ValidationError({'target_hours': '월간 목표는 300시간을 초과할 수 없습니다.'})
+                    raise ValidationError(
+                        {"target_hours": "월간 목표는 300시간을 초과할 수 없습니다."}
+                    )
+
 
 class UserNote(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -8,6 +8,7 @@ from .logic import get_stats_context
 from .feedback import generate_feedback
 from itertools import islice
 
+
 def chunked_iterable(iterable, n):
     it = iter(iterable)
     while True:
@@ -16,12 +17,14 @@ def chunked_iterable(iterable, n):
             break
         yield chunk
 
+
 # Create your views here.
+
 
 @login_required
 def index(request):
-    selected_date = safe_date_parse(request.GET.get('date'))
+    selected_date = safe_date_parse(request.GET.get("date"))
     context = get_stats_context(request.user, selected_date)
     feedback_msgs = generate_feedback(context)
-    context['ai_feedback_msgs'] = feedback_msgs
-    return render(request, 'stats/index.html', context)
+    context["ai_feedback_msgs"] = feedback_msgs
+    return render(request, "stats/index.html", context)

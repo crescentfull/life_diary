@@ -21,19 +21,19 @@ from django.contrib.auth.decorators import user_passes_test
 from . import views
 
 # 관리자만 admin 패널 접근 가능하도록 제한
-admin.site.login = user_passes_test(lambda u: u.is_superuser, login_url='/')(admin.site.login)
+admin.site.login = user_passes_test(lambda u: u.is_superuser, login_url="/")(
+    admin.site.login
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("", views.index, name='home'),
-    
+    path("", views.index, name="home"),
     # Page URLs
-    path("dashboard/", include('apps.dashboard.urls')),
-    path("stats/", include('apps.stats.urls')),
-    path("tags/", include('apps.tags.urls')),
-    path("accounts/", include('apps.users.urls')),
-
+    path("dashboard/", include("apps.dashboard.urls")),
+    path("stats/", include("apps.stats.urls")),
+    path("tags/", include("apps.tags.urls")),
+    path("accounts/", include("apps.users.urls")),
     # API URLs
-    path('api/', include('apps.dashboard.api_urls')),
-    path('api/', include('apps.tags.api_urls')),
+    path("api/", include("apps.dashboard.api_urls")),
+    path("api/", include("apps.tags.api_urls")),
 ]
