@@ -343,24 +343,19 @@ def get_stats_context(user, selected_date):
         for tag_stat in weekly_stats['tag_weekly_stats']:
             if tag_stat['name'] == goal.tag.name:
                 actual = tag_stat['total_hours']
-        # 목표 시간을 주간 총 시간으로 변환 (일평균 * 7일)
-        target_total = goal.target_hours * 7
-        percent = int((actual / target_total) * 100) if target_total > 0 else None
+        # 사용자가 입력한 목표 시간을 그대로 사용 (주간 총 시간)
+        percent = int((actual / goal.target_hours) * 100) if goal.target_hours > 0 else None
         goal.percent = percent
         goal.actual = actual
-        goal.target_hours = target_total  # 목표 시간을 총 시간으로 변경
     for goal in user_goals_monthly:
         actual = 0
         for tag_stat in monthly_stats['tag_stats']:
             if tag_stat['name'] == goal.tag.name:
                 actual = tag_stat['total_hours']
-        month_days = monthly_stats['total_days']
-        # 목표 시간을 월간 총 시간으로 변환 (일평균 * 월일수)
-        target_total = goal.target_hours * month_days
-        percent = int((actual / target_total) * 100) if target_total > 0 else None
+        # 사용자가 입력한 목표 시간을 그대로 사용 (월간 총 시간)
+        percent = int((actual / goal.target_hours) * 100) if goal.target_hours > 0 else None
         goal.percent = percent
         goal.actual = actual
-        goal.target_hours = target_total  # 목표 시간을 총 시간으로 변경
     user_note = UserNote.objects.filter(user=user).order_by('-created_at').first()
     context['user_note'] = user_note
     return context 

@@ -1,13 +1,71 @@
 {% extends 'base.html' %}
 {% block content %}
+<style>
+  /* 목표 시간 입력 필드 스타일 */
+  input[name="target_hours"] {
+    width: 125px !important;
+    display: inline-block;
+  }
+  
+  /* 폼 필드 전체 스타일 */
+  .form-control {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+  }
+  
+  .form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+  }
+</style>
+
 <div class="container mt-4">
   <h2>마이페이지</h2>
   <div class="row">
     <div class="col-md-6">
       <h4>목표 추가</h4>
+      <div class="alert alert-info">
+        <strong>목표 시간 입력 안내:</strong><br>
+        • 일간: 하루 목표 시간 (최대 24시간)<br>
+        • 주간: 일주일 총 목표 시간 (최대 100시간)<br>
+        • 월간: 한 달 총 목표 시간 (최대 300시간)
+      </div>
       <form method="post" class="mb-4">
         {% csrf_token %}
-        {{ form.as_p }}
+        
+        <!-- 태그 선택 -->
+        <div class="mb-3">
+          <label for="{{ form.tag.id_for_label }}" class="form-label">{{ form.tag.label }}</label>
+          {{ form.tag }}
+          {% if form.tag.errors %}
+            <div class="text-danger">{{ form.tag.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- 기간 선택 -->
+        <div class="mb-3">
+          <label for="{{ form.period.id_for_label }}" class="form-label">{{ form.period.label }}</label>
+          {{ form.period }}
+          {% if form.period.errors %}
+            <div class="text-danger">{{ form.period.errors }}</div>
+          {% endif %}
+        </div>
+        
+        <!-- 목표 시간 입력 -->
+        <div class="mb-3">
+          <label for="{{ form.target_hours.id_for_label }}" class="form-label">{{ form.target_hours.label }}</label>
+          <div style="display: flex; align-items: center; gap: 10px;">
+            {{ form.target_hours }}
+            <span class="text-muted">시간</span>
+          </div>
+          {% if form.target_hours.help_text %}
+            <div class="form-text">{{ form.target_hours.help_text|safe }}</div>
+          {% endif %}
+          {% if form.target_hours.errors %}
+            <div class="text-danger">{{ form.target_hours.errors }}</div>
+          {% endif %}
+        </div>
+        
         <button type="submit" class="btn btn-success">목표 추가</button>
       </form>
     </div>
@@ -17,4 +75,36 @@
     </div>
   </div>
 </div>
+
+<script>
+function updateTargetHoursMax() {
+    const periodSelect = document.querySelector('select[name="period"]');
+    const targetHoursInput = document.querySelector('input[name="target_hours"]');
+    
+    if (periodSelect && targetHoursInput) {
+        const period = periodSelect.value;
+        let maxValue = 24; // 기본값
+        
+        switch(period) {
+            case 'daily':
+                maxValue = 24;
+                break;
+            case 'weekly':
+                maxValue = 100;
+                break;
+            case 'monthly':
+                maxValue = 300;
+                break;
+        }
+        
+        targetHoursInput.max = maxValue;
+        targetHoursInput.placeholder = `최대 ${maxValue}시간까지 입력 가능`;
+    }
+}
+
+// 페이지 로드 시 초기 설정
+document.addEventListener('DOMContentLoaded', function() {
+    updateTargetHoursMax();
+});
+</script>
 {% endblock %} 
