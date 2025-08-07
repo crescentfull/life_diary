@@ -6,7 +6,7 @@
 
 Life Diary는 일상생활을 10분 단위로 기록하고 분석할 수 있는 웹 애플리케이션입니다. 사용자는 시간 블록에 태그를 할당하여 하루를 체계적으로 관리하고, 통계를 통해 자신의 시간 사용 패턴을 파악할 수 있습니다.
 
-## ✨ 주요 기능
+##  주요 기능
 
 ### 시간 블록 관리
 - **10분 단위 기록**: 하루 24시간을 144개의 10분 슬롯으로 분할
@@ -29,7 +29,7 @@ Life Diary는 일상생활을 10분 단위로 기록하고 분석할 수 있는 
 - **개인 메모**: 사용자별 노트 작성 및 관리
 - **목표 관리**: 태그별 시간 목표 설정
 
-## 🛠️ 기술 스택
+##  기술 스택
 
 ### Backend
 - **Django 5.2.4**: 웹 프레임워크
@@ -47,7 +47,7 @@ Life Diary는 일상생활을 10분 단위로 기록하고 분석할 수 있는 
 - **WhiteNoise**: 정적 파일 서빙
 - **python-dotenv**: 환경 변수 관리
 
-## 📁 프로젝트 구조
+##  프로젝트 구조
 
 ```
 lifeDiary/
@@ -140,7 +140,7 @@ python manage.py runserver
 
 브라우저에서 `http://localhost:8000`으로 접속하여 애플리케이션을 확인할 수 있습니다.
 
-## 📖 사용법
+##  사용법
 
 ### 1. 회원가입 및 로그인
 - `/accounts/signup/`에서 회원가입
@@ -163,7 +163,7 @@ python manage.py runserver
 - `/accounts/mypage/`에서 태그별 시간 목표 설정
 - 일간/주간/월간 단위로 목표 관리
 
-## 🔧 API 엔드포인트
+##  API 엔드포인트
 
 ### 시간 블록 API
 - `POST /api/timeblock/`: 시간 블록 생성/수정
@@ -199,7 +199,7 @@ python manage.py runserver
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## 📝 라이선스
+## 라이선스
 
 이 프로젝트는 방통대 소프트웨어 경진대회 출품작입니다.
 
@@ -208,5 +208,3 @@ python manage.py runserver
 - 송영록
 
 ---
-
-**Life Diary**로 당신의 일상을 더 체계적으로 관리해보세요!
