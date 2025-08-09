@@ -3,6 +3,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from apps.tags.models import Tag
+from apps.core.utils import UNCLASSIFIED_TAG_NAME
 
 # Create your models here.
 
@@ -51,7 +52,8 @@ class TimeBlock(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.date} [{self.get_time_range()}] {self.tag.name}"
+        tag_name = self.tag.name if self.tag else UNCLASSIFIED_TAG_NAME
+        return f"{self.user.username} - {self.date} [{self.get_time_range()}] {tag_name}"
 
     def get_time_range(self):
         """슬롯 인덱스를 시간 범위로 변환"""
