@@ -18,7 +18,7 @@
                     
                     <div class="mb-3">
                         <label for="{{ form.username.id_for_label }}" class="form-label">사용자명</label>
-                        {{ form.username }}
+                        {{ form.username }} TestID: test3
                         {% if form.username.errors %}
                             <div class="text-danger small">
                                 {{ form.username.errors }}
@@ -28,7 +28,7 @@
                     
                     <div class="mb-3">
                         <label for="{{ form.password.id_for_label }}" class="form-label">비밀번호</label>
-                        {{ form.password }}
+                        {{ form.password }} TestPWD: tttt1234
                         {% if form.password.errors %}
                             <div class="text-danger small">
                                 {{ form.password.errors }}
